@@ -1,0 +1,944 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ashtavadhani - Multi-Agent Collaborative Video Synthesis</title>
+    <!-- Google Fonts: Inter & Outfit -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Lucide Icons CDN -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="glow-bg"></div>
+    <div class="app-container">
+        <!-- HEADER -->
+        <header class="app-header">
+            <div class="brand">
+                <div class="brand-logo" style="padding: 0; overflow: hidden; background: transparent; border: none; box-shadow: none;">
+                    <img src="/static/logo.png" alt="Ashtavadhani Logo" style="width: 100%; height: 100%; object-fit: cover; border-radius: 8px;">
+                </div>
+                <div class="brand-text">
+                    <h1>ASHTAVADHANI <span class="badge neon-violet">AGENTIC EDIT</span></h1>
+                    <p>Multi-Agent Collaborative Video Synthesis Engine</p>
+                </div>
+            </div>
+            <div class="header-status">
+                <div class="credits-widget" id="credits-widget">
+                    <div class="credits-info">
+                        <i data-lucide="zap" class="credits-icon"></i>
+                        <span>AI Credits: <strong id="credits-count">1500</strong>/1500</span>
+                    </div>
+                    <div class="credits-subtext hidden" id="credits-exhausted-text">Switched to free version</div>
+                </div>
+                <div class="status-pill idle" id="system-status-pill">
+                    <span class="status-dot"></span>
+                    <span class="status-text" id="system-status-text">System Idle</span>
+                </div>
+                <button class="btn btn-secondary btn-icon" id="btn-settings" title="API Settings" style="margin-right: 4px;">
+                    <i data-lucide="settings"></i>
+                </button>
+                <button class="btn btn-secondary btn-icon" id="btn-reset" title="Reset Workspace">
+                    <i data-lucide="rotate-ccw"></i>
+                </button>
+            </div>
+        </header>
+
+        <!-- MAIN DOCK -->
+        <main class="app-main">
+            <!-- LEFT COLUMN: INPUTS & SETTINGS -->
+            <section class="panel panel-inputs">
+                <div class="panel-header">
+                    <i data-lucide="layers"></i>
+                    <h2>Project Assets</h2>
+                </div>
+                <div class="panel-body">
+                    <!-- Asset Tab Buttons -->
+                    <div class="asset-tabs">
+                        <button class="tab-btn active" data-tab="videos" id="tab-btn-videos">
+                            <i data-lucide="video"></i> Videos
+                        </button>
+                        <button class="tab-btn" data-tab="music" id="tab-btn-music">
+                            <i data-lucide="music"></i> Music
+                        </button>
+                        <button class="tab-btn" data-tab="sfx" id="tab-btn-sfx">
+                            <i data-lucide="volume-2"></i> SFX
+                        </button>
+                    </div>
+
+                    <!-- TAB: Videos -->
+                    <div class="tab-content active" id="tab-videos">
+                        <form id="upload-form">
+                            <div class="form-group">
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                                    <label style="margin-bottom: 0;">Raw Footage Clips &amp; Photos</label>
+                                    <div style="display: flex; gap: 8px;">
+                                        <button type="button" class="btn btn-sm btn-outline" id="btn-show-all-clips" style="padding: 4px 8px; font-size: 0.7rem; display: flex; align-items: center; gap: 4px;">
+                                            <i data-lucide="eye" style="width:12px; height:12px;"></i> Show All (<span id="raw-clips-count">0</span>)
+                                        </button>
+                                        <button type="button" class="btn btn-sm btn-accent" id="btn-add-more-clips" style="padding: 4px 8px; font-size: 0.7rem; display: flex; align-items: center; gap: 4px;">
+                                            <i data-lucide="plus" style="width:12px; height:12px;"></i> Add More
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="dropzone" id="dropzone-raw">
+                                    <input type="file" id="input-raw" multiple accept="video/*,image/*" class="file-input">
+                                    <i data-lucide="video" class="dropzone-icon"></i>
+                                    <p class="dropzone-title">Drag &amp; drop raw clips/photos</p>
+                                    <p class="dropzone-sub">or click to browse</p>
+                                    <div class="file-list" id="list-raw"></div>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label>Reference Clip <span class="label-optional">(optional)</span></label>
+                                <div class="dropzone" id="dropzone-ref">
+                                    <input type="file" id="input-ref" accept="video/*" class="file-input">
+                                    <i data-lucide="clapperboard" class="dropzone-icon"></i>
+                                    <p class="dropzone-title">Instagram Reel / YouTube</p>
+                                    <p class="dropzone-sub">Match this pacing &amp; style</p>
+                                    <div class="file-list" id="list-ref"></div>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label for="prompt">Creative Instructions</label>
+                                <textarea id="prompt" placeholder="e.g., Edit my gym footage with fast cuts, moody phonk music, and add captions. Sync cuts to beats." required></textarea>
+                            </div>
+                            <div class="form-group" style="margin-top: 15px; border-top: 1px solid rgba(255,255,255,0.08); padding-top: 15px;">
+                                <label>Text Overlays</label>
+                                <div class="text-overlay-builder">
+                                    <input type="text" class="overlay-text-input" id="text-overlay-content" placeholder="Enter text (e.g. Follow for more!)"/>
+                                    <div class="overlay-row">
+                                        <div class="overlay-field">
+                                            <label class="mini-label">Start (s)</label>
+                                            <input type="number" class="overlay-num" id="text-overlay-start" min="0" step="0.1" value="0">
+                                        </div>
+                                        <div class="overlay-field">
+                                            <label class="mini-label">End (s)</label>
+                                            <input type="number" class="overlay-num" id="text-overlay-end" min="0" step="0.1" value="3">
+                                        </div>
+                                        <div class="overlay-field">
+                                            <label class="mini-label">Position</label>
+                                            <select class="overlay-select" id="text-overlay-position">
+                                                <option value="top">Top</option>
+                                                <option value="center">Center</option>
+                                                <option value="bottom" selected>Bottom</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div class="overlay-row">
+                                        <select class="overlay-select flex-1" id="text-overlay-style">
+                                            <option value="normal">Normal White</option>
+                                            <option value="bold">Bold Uppercase</option>
+                                            <option value="neon">Neon Glow</option>
+                                            <option value="outline">Black Outline</option>
+                                        </select>
+                                        <button class="btn btn-accent btn-sm" id="btn-add-text-overlay" type="button">
+                                            <i data-lucide="plus"></i> Add
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="asset-list" id="text-overlay-list" style="margin-top:8px;">
+                                    <div class="asset-empty-state" id="text-empty">
+                                        <i data-lucide="type"></i>
+                                        <span>No text overlays yet</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <button type="submit" class="btn btn-primary btn-block" id="btn-submit">
+                                <i data-lucide="play-circle"></i>
+                                <span>Analyze and Edit</span>
+                            </button>
+                        </form>
+                    </div>
+
+                    <!-- TAB: Music -->
+                    <div class="tab-content" id="tab-music">
+                        <div class="form-group">
+                            <label>Background Music Tracks</label>
+                            <div class="dropzone compact" id="dropzone-music">
+                                <input type="file" id="input-music" multiple accept="audio/*" class="file-input">
+                                <i data-lucide="music-2" class="dropzone-icon"></i>
+                                <p class="dropzone-title">Drop MP3/WAV files</p>
+                                <p class="dropzone-sub">Multiple tracks supported</p>
+                            </div>
+                        </div>
+                        <div class="asset-list-label">Added Tracks</div>
+                        <div class="asset-list" id="music-asset-list">
+                            <div class="asset-empty-state" id="music-empty">
+                                <i data-lucide="music"></i>
+                                <span>No music added yet</span>
+                            </div>
+                        </div>
+
+                        <!-- Music Library Search & Pre-cached -->
+                        <div class="library-section" style="margin-top:20px; border-top:1px solid rgba(255,255,255,0.08); padding-top:16px;">
+                            <div class="asset-list-label" style="display:flex; justify-content:space-between; align-items:center;">
+                                <span>Built-in Music Library</span>
+                                <div style="display:flex; align-items:center; gap:6px;">
+                                    <span class="badge" id="music-searches-remaining" style="background:rgba(139,92,246,0.15); color:#c084fc; font-size:0.6rem; padding:1px 4px; display:none;">Searches left: 20</span>
+                                    <span class="badge neon-violet">Jamendo Search</span>
+                                </div>
+                            </div>
+                            <div class="overlay-row" style="margin-bottom:10px;">
+                                <input type="text" id="music-library-search-input" placeholder="Search Jamendo music (e.g. phonk, lofi)..." class="overlay-text-input flex-1">
+                                <button id="btn-music-library-search" class="btn btn-primary btn-sm" type="button">
+                                    <i data-lucide="search"></i>
+                                </button>
+                            </div>
+                            <div class="library-categories" id="music-categories" style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:12px;">
+                                <button class="category-pill active" data-val="all" type="button">All</button>
+                                <button class="category-pill" data-val="lofi" type="button">Lofi</button>
+                                <button class="category-pill" data-val="phonk" type="button">Phonk</button>
+                                <button class="category-pill" data-val="upbeat" type="button">Upbeat</button>
+                                <button class="category-pill" data-val="cinematic" type="button">Cinematic</button>
+                            </div>
+                            <div class="library-search-results hidden" id="music-search-results-list" style="margin-bottom:10px;"></div>
+                            
+                            <div class="asset-list-label">Offline Cached Music</div>
+                            <div class="library-static-list" id="music-static-list">
+                                <!-- Pre-cached music items -->
+                                <div class="library-item" data-filename="backing_music.mp3">
+                                    <span class="lib-item-title">🎵 backing_music.mp3</span>
+                                    <div class="lib-item-actions">
+                                        <button class="btn btn-outline btn-sm btn-lib-preview" onclick="previewLibrarySound('/static/music/backing_music.mp3', this)" type="button"><i data-lucide="play"></i></button>
+                                        <button class="btn btn-accent btn-sm" onclick="addLibrarySoundToTimeline('music/backing_music.mp3')" type="button"><i data-lucide="plus"></i> Add</button>
+                                    </div>
+                                </div>
+                                <div class="library-item" data-filename="gym_phonk.mp3">
+                                    <span class="lib-item-title">🎵 gym_phonk.mp3</span>
+                                    <div class="lib-item-actions">
+                                        <button class="btn btn-outline btn-sm btn-lib-preview" onclick="previewLibrarySound('/static/music/gym_phonk.mp3', this)" type="button"><i data-lucide="play"></i></button>
+                                        <button class="btn btn-accent btn-sm" onclick="addLibrarySoundToTimeline('music/gym_phonk.mp3')" type="button"><i data-lucide="plus"></i> Add</button>
+                                    </div>
+                                </div>
+                                <div class="library-item" data-filename="lofi_chill.mp3">
+                                    <span class="lib-item-title">🎵 lofi_chill.mp3</span>
+                                    <div class="lib-item-actions">
+                                        <button class="btn btn-outline btn-sm btn-lib-preview" onclick="previewLibrarySound('/static/music/lofi_chill.mp3', this)" type="button"><i data-lucide="play"></i></button>
+                                        <button class="btn btn-accent btn-sm" onclick="addLibrarySoundToTimeline('music/lofi_chill.mp3')" type="button"><i data-lucide="plus"></i> Add</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- AI Music Composer Section -->
+                        <div class="library-section" style="margin-top:16px; border-top:1px solid rgba(255,255,255,0.08); padding-top:16px; margin-bottom:10px;">
+                            <div class="asset-list-label" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+                                <span>🪄 AI Compose</span>
+                                <span class="badge" style="background:linear-gradient(135deg,rgba(139,92,246,0.3),rgba(236,72,153,0.3)); color:#e879f9; font-size:0.6rem; padding:2px 6px; border:1px solid rgba(236,72,153,0.3);">Local Synth</span>
+                            </div>
+
+                            <!-- Text Prompt Input -->
+                            <div style="margin-bottom:10px;">
+                                <label class="mini-label" style="display:block; margin-bottom:4px; font-size:0.68rem; color:rgba(255,255,255,0.5);">Describe the music vibes (e.g. spooky horror, cinematic thriller, upbeat pop)</label>
+                                <input type="text" id="ai-music-prompt" placeholder="Type prompt here or choose a vibe below..." class="overlay-text-input" style="width:100%; font-size:0.75rem; box-sizing:border-box; padding:8px; border-radius:6px; background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.08); color:#fff;">
+                            </div>
+
+                            <!-- Vibe Grid (Quick Presets) -->
+                            <div style="display:grid; grid-template-columns: repeat(4,1fr); gap:5px; margin-bottom:10px;">
+                                <button class="ai-vibe-btn active" data-vibe="lofi" type="button">🌙 Lofi</button>
+                                <button class="ai-vibe-btn" data-vibe="phonk" type="button">🔥 Phonk</button>
+                                <button class="ai-vibe-btn" data-vibe="cinematic" type="button">🎬 Epic</button>
+                                <button class="ai-vibe-btn" data-vibe="upbeat" type="button">⚡ Upbeat</button>
+                                <button class="ai-vibe-btn" data-vibe="dark" type="button">🌑 Dark</button>
+                                <button class="ai-vibe-btn" data-vibe="chill" type="button">🍃 Chill</button>
+                                <button class="ai-vibe-btn" data-vibe="gym" type="button">💪 Gym</button>
+                                <button class="ai-vibe-btn" data-vibe="cooking" type="button">🍳 Cooking</button>
+                            </div>
+
+                            <!-- Duration & Generate row -->
+                            <div style="display:flex; gap:8px; align-items:center;">
+                                <div style="display:flex; flex-direction:column; gap:3px; flex:1;">
+                                    <label class="mini-label">Duration</label>
+                                    <select id="ai-music-duration" class="overlay-select" style="font-size:0.72rem; padding:6px 8px;">
+                                        <option value="15">15 seconds</option>
+                                        <option value="30" selected>30 seconds</option>
+                                        <option value="45">45 seconds</option>
+                                        <option value="60">60 seconds</option>
+                                    </select>
+                                </div>
+                                <button id="btn-generate-ai-music" class="btn btn-sm" type="button"
+                                    style="background:linear-gradient(135deg,#8b5cf6,#ec4899); border:none; color:#fff; padding:10px 14px; border-radius:8px; cursor:pointer; font-weight:600; display:flex; align-items:center; gap:6px; margin-top:16px; flex-shrink:0;">
+                                    <i data-lucide="sparkles"></i> Generate
+                                </button>
+                            </div>
+
+                            <!-- Status bar -->
+                            <div id="ai-music-status" style="display:none; margin-top:10px; padding:8px 10px; background:rgba(139,92,246,0.1); border:1px solid rgba(139,92,246,0.2); border-radius:8px; font-size:0.72rem; color:#c084fc; display:flex; align-items:center; gap:8px;">
+                                <i data-lucide="loader-2" style="width:13px;height:13px;" class="spin-icon"></i>
+                                <span id="ai-music-status-text">Composing...</span>
+                            </div>
+
+                            <!-- Generated tracks list -->
+                            <div id="ai-music-results" style="margin-top:8px; display:flex; flex-direction:column; gap:6px;"></div>
+
+                            <!-- Beatoven upgrade placeholder (hidden until key added) -->
+                            <div id="beatoven-upgrade-hint" style="margin-top:10px; padding:8px 10px; background:rgba(236,72,153,0.05); border:1px dashed rgba(236,72,153,0.2); border-radius:8px; font-size:0.68rem; color:rgba(255,255,255,0.4); display:flex; align-items:center; gap:6px;">
+                                <i data-lucide="zap" style="width:12px;height:12px;color:#ec4899;"></i>
+                                <span>Beatoven.ai premium generation coming soon — will upgrade this section automatically</span>
+                            </div>
+                        </div>
+                    </div>
+
+
+                    <!-- TAB: SFX -->
+                    <div class="tab-content" id="tab-sfx">
+                        <div class="form-group">
+                            <label>Sound Effects</label>
+                            <div class="dropzone compact" id="dropzone-sfx">
+                                <input type="file" id="input-sfx" multiple accept="audio/*" class="file-input">
+                                <i data-lucide="volume-2" class="dropzone-icon"></i>
+                                <p class="dropzone-title">Drop WAV/MP3 files</p>
+                                <p class="dropzone-sub">Applied at transition points</p>
+                            </div>
+                        </div>
+                        <div class="asset-list-label">Added SFX</div>
+                        <div class="asset-list" id="sfx-asset-list">
+                            <div class="asset-empty-state" id="sfx-empty">
+                                <i data-lucide="waveform"></i>
+                                <span>No sound FX added yet</span>
+                            </div>
+                        </div>
+
+                        <!-- AI Generator Section -->
+                        <div class="library-section" style="margin-top:20px; border-top:1px solid rgba(255,255,255,0.08); padding-top:16px; margin-bottom: 20px;">
+                            <div class="asset-list-label" style="display:flex; justify-content:space-between; align-items:center;">
+                                <span>AI Sound Generator</span>
+                                <span class="badge neon-violet">ElevenLabs AI</span>
+                            </div>
+                            <div class="text-overlay-builder">
+                                <input type="text" id="ai-sfx-prompt" placeholder="Describe sound (e.g. laser zap, deep boom)..." class="overlay-text-input">
+                                <div class="overlay-row" style="align-items: center; justify-content: space-between;">
+                                    <div class="overlay-field">
+                                        <label class="mini-label">Duration (s)</label>
+                                        <input type="number" id="ai-sfx-duration" min="0.5" max="5.0" step="0.5" value="2.0" class="overlay-num" style="width: 70px;">
+                                    </div>
+                                    <button id="btn-generate-ai-sfx" class="btn btn-accent btn-sm" type="button" style="background: linear-gradient(135deg, #ec4899, #8b5cf6); border: none;">
+                                        <i data-lucide="sparkles"></i> Generate AI SFX
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- SFX Library Search & Pre-cached -->
+                        <div class="library-section" style="border-top:1px solid rgba(255,255,255,0.08); padding-top:16px;">
+                            <div class="asset-list-label" style="display:flex; justify-content:space-between; align-items:center;">
+                                <span>SFX Library Search</span>
+                                <div style="display:flex; align-items:center; gap:6px;">
+                                    <span class="badge" id="sfx-searches-remaining" style="background:rgba(139,92,246,0.15); color:#c084fc; font-size:0.6rem; padding:1px 4px; display:none;">Searches left: 20</span>
+                                    <span class="badge neon-violet">Freesound API</span>
+                                </div>
+                            </div>
+                            <div class="overlay-row" style="margin-bottom:10px;">
+                                <input type="text" id="sfx-library-search-input" placeholder="Search sounds (e.g. whoosh, punch)..." class="overlay-text-input flex-1">
+                                <button id="btn-sfx-library-search" class="btn btn-primary btn-sm" type="button">
+                                    <i data-lucide="search"></i>
+                                </button>
+                            </div>
+                            <div class="overlay-row" style="margin-bottom:10px; gap:6px;">
+                                <select id="sfx-filter-duration" class="overlay-select flex-1" style="font-size:0.7rem; padding:4px 6px;">
+                                    <option value="any">Any Duration</option>
+                                    <option value="short">Short (&lt; 2s)</option>
+                                    <option value="medium">Medium (2s - 10s)</option>
+                                    <option value="long">Long (&gt; 10s)</option>
+                                </select>
+                                <select id="sfx-filter-vibe" class="overlay-select flex-1" style="font-size:0.7rem; padding:4px 6px;">
+                                    <option value="any">Any Vibe</option>
+                                    <option value="horror">Horror</option>
+                                    <option value="thriller">Thriller</option>
+                                    <option value="sci-fi">Sci-Fi</option>
+                                    <option value="cartoon">Cartoon</option>
+                                    <option value="cinematic">Cinematic</option>
+                                </select>
+                            </div>
+                            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+                                <button id="btn-sfx-view-all" class="btn btn-outline btn-sm" type="button" style="font-size:0.7rem; padding:4px 8px; border-radius:4px; display:flex; align-items:center; gap:4px;">
+                                    <i data-lucide="eye"></i> View All Popular SFX
+                                </button>
+                            </div>
+                            <div class="library-categories" id="sfx-categories" style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:12px;">
+                                <button class="category-pill active" data-val="all" type="button">All</button>
+                                <button class="category-pill" data-val="swoosh" type="button">Swoosh</button>
+                                <button class="category-pill" data-val="impact" type="button">Impact</button>
+                                <button class="category-pill" data-val="beep" type="button">Beep</button>
+                                <button class="category-pill" data-val="nature" type="button">Nature</button>
+                            </div>
+                            <div class="library-search-results hidden" id="sfx-search-results-list" style="margin-bottom:15px;"></div>
+                            
+                            <div class="asset-list-label">Shortlisted / Favorite SFX</div>
+                            <div class="asset-list" id="sfx-shortlist-list" style="margin-bottom:15px; max-height: 180px;">
+                                <div class="asset-empty-state" id="sfx-shortlist-empty">
+                                    <i data-lucide="star"></i>
+                                    <span>No favorite sounds yet</span>
+                                </div>
+                            </div>
+                            
+                            <div class="asset-list-label">Offline Cached SFX</div>
+                            <div class="library-static-list" id="sfx-static-list">
+                                <!-- Pre-cached SFX items -->
+                                <div class="library-item" data-filename="whip-swoosh.wav">
+                                    <span class="lib-item-title">🔊 whip-swoosh.wav</span>
+                                    <div class="lib-item-actions">
+                                        <button class="btn btn-outline btn-sm btn-lib-preview" onclick="previewLibrarySound('/static/music/whip-swoosh.wav', this)" type="button"><i data-lucide="play"></i></button>
+                                        <button class="btn btn-accent btn-sm" onclick="addLibrarySoundToTimeline('music/whip-swoosh.wav')" type="button"><i data-lucide="plus"></i> Add</button>
+                                    </div>
+                                </div>
+                                <div class="library-item" data-filename="swoosh_soft.wav">
+                                    <span class="lib-item-title">🔊 swoosh_soft.wav</span>
+                                    <div class="lib-item-actions">
+                                        <button class="btn btn-outline btn-sm btn-lib-preview" onclick="previewLibrarySound('/static/music/swoosh_soft.wav', this)" type="button"><i data-lucide="play"></i></button>
+                                        <button class="btn btn-accent btn-sm" onclick="addLibrarySoundToTimeline('music/swoosh_soft.wav')" type="button"><i data-lucide="plus"></i> Add</button>
+                                    </div>
+                                </div>
+                                <div class="library-item" data-filename="fry_sizzle.wav">
+                                    <span class="lib-item-title">🔊 fry_sizzle.wav</span>
+                                    <div class="lib-item-actions">
+                                        <button class="btn btn-outline btn-sm btn-lib-preview" onclick="previewLibrarySound('/static/music/fry_sizzle.wav', this)" type="button"><i data-lucide="play"></i></button>
+                                        <button class="btn btn-accent btn-sm" onclick="addLibrarySoundToTimeline('music/fry_sizzle.wav')" type="button"><i data-lucide="plus"></i> Add</button>
+                                    </div>
+                                </div>
+                                <div class="library-item" data-filename="cyber_beep.wav">
+                                    <span class="lib-item-title">🔊 cyber_beep.wav</span>
+                                    <div class="lib-item-actions">
+                                        <button class="btn btn-outline btn-sm btn-lib-preview" onclick="previewLibrarySound('/static/music/cyber_beep.wav', this)" type="button"><i data-lucide="play"></i></button>
+                                        <button class="btn btn-accent btn-sm" onclick="addLibrarySoundToTimeline('music/cyber_beep.wav')" type="button"><i data-lucide="plus"></i> Add</button>
+                                    </div>
+                                </div>
+                                <div class="library-item" data-filename="impact_boom.wav">
+                                    <span class="lib-item-title">🔊 impact_boom.wav</span>
+                                    <div class="lib-item-actions">
+                                        <button class="btn btn-outline btn-sm btn-lib-preview" onclick="previewLibrarySound('/static/music/impact_boom.wav', this)" type="button"><i data-lucide="play"></i></button>
+                                        <button class="btn btn-accent btn-sm" onclick="addLibrarySoundToTimeline('music/impact_boom.wav')" type="button"><i data-lucide="plus"></i> Add</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- TAB: Photos & Text -->
+                </div>
+            </section>
+
+            <!-- MIDDLE COLUMN: AGENT OPERATIONS CENTER -->
+            <section class="panel panel-operations">
+                <div class="panel-header">
+                    <i data-lucide="shield-alert"></i>
+                    <h2>Agent Operations Center</h2>
+                </div>
+                <div class="panel-body flex-col">
+                    <!-- Agent Network Status Grid -->
+                    <div class="agent-grid">
+                        <!-- 1. User Interaction Agent -->
+                        <div class="agent-card idle" id="agent-user">
+                            <div class="agent-indicator">
+                                <span class="agent-dot"></span>
+                                <div class="pulse-ring"></div>
+                            </div>
+                            <h3>User Interaction</h3>
+                            <p>Interface & Dialog</p>
+                        </div>
+                        <!-- 2. Manager Agent -->
+                        <div class="agent-card idle" id="agent-manager">
+                            <div class="agent-indicator">
+                                <span class="agent-dot"></span>
+                                <div class="pulse-ring"></div>
+                            </div>
+                            <h3>Manager</h3>
+                            <p>Orchestrator</p>
+                        </div>
+                        <!-- 3. Reference Analysis Agent -->
+                        <div class="agent-card idle" id="agent-reference">
+                            <div class="agent-indicator">
+                                <span class="agent-dot"></span>
+                                <div class="pulse-ring"></div>
+                            </div>
+                            <h3>Ref Analyzer</h3>
+                            <p>Pacing & Aesthetics</p>
+                        </div>
+                        <!-- 4. Stock & AI Footage Agent -->
+                        <div class="agent-card idle" id="agent-stock">
+                            <div class="agent-indicator">
+                                <span class="agent-dot"></span>
+                                <div class="pulse-ring"></div>
+                            </div>
+                            <h3>Stock & AI Sourcing</h3>
+                            <p>Clip Auditor</p>
+                        </div>
+                        <!-- 5. Music Agent -->
+                        <div class="agent-card idle" id="agent-music">
+                            <div class="agent-indicator">
+                                <span class="agent-dot"></span>
+                                <div class="pulse-ring"></div>
+                            </div>
+                            <h3>Music</h3>
+                            <p>Beat Detector</p>
+                        </div>
+                        <!-- 6. Sound Effects Agent -->
+                        <div class="agent-card idle" id="agent-sfx">
+                            <div class="agent-indicator">
+                                <span class="agent-dot"></span>
+                                <div class="pulse-ring"></div>
+                            </div>
+                            <h3>Sound FX</h3>
+                            <p>SFX Enhancer</p>
+                        </div>
+                        <!-- 7. Caption Agent -->
+                        <div class="agent-card idle" id="agent-caption">
+                            <div class="agent-indicator">
+                                <span class="agent-dot"></span>
+                                <div class="pulse-ring"></div>
+                            </div>
+                            <h3>Caption</h3>
+                            <p>Subtitle Typographer</p>
+                        </div>
+                        <!-- 8. Editor Agent -->
+                        <div class="agent-card idle" id="agent-editor">
+                            <div class="agent-indicator">
+                                <span class="agent-dot"></span>
+                                <div class="pulse-ring"></div>
+                            </div>
+                            <h3>Editor</h3>
+                            <p>Stitcher & Renderer</p>
+                        </div>
+                        <!-- 9. Quality Review Agent -->
+                        <div class="agent-card idle" id="agent-review">
+                            <div class="agent-indicator">
+                                <span class="agent-dot"></span>
+                                <div class="pulse-ring"></div>
+                            </div>
+                            <h3>Quality Review</h3>
+                            <p>Verifier & Auditor</p>
+                        </div>
+                        <!-- 10. Transitions Agent -->
+                        <div class="agent-card idle" id="agent-transitions">
+                            <div class="agent-indicator">
+                                <span class="agent-dot"></span>
+                                <div class="pulse-ring"></div>
+                            </div>
+                            <h3>Transitions</h3>
+                            <p>Smooth Cuts & Whip-Pans</p>
+                        </div>
+                        <!-- 11. Motion Graphics Agent -->
+                        <div class="agent-card idle" id="agent-motion-graphics">
+                            <div class="agent-indicator">
+                                <span class="agent-dot"></span>
+                                <div class="pulse-ring"></div>
+                            </div>
+                            <h3>Motion Graphics</h3>
+                            <p>Dynamic Typography & FX</p>
+                        </div>
+                    </div>
+
+                    <!-- Live Log Terminal Console -->
+                    <div class="console-box">
+                        <div class="console-header">
+                            <div class="console-title">
+                                <i data-lucide="terminal"></i>
+                                <span>Agent Communications Terminal</span>
+                            </div>
+                            <div class="console-controls">
+                                <span class="dot red"></span>
+                                <span class="dot yellow"></span>
+                                <span class="dot green"></span>
+                            </div>
+                        </div>
+                        <div class="console-body" id="console-logs">
+                            <div class="log-line system">[System] Ready. Waiting for inputs.</div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- RIGHT COLUMN: PLAYER PREVIEW & INTERACTION -->
+            <section class="panel panel-preview">
+                <div class="panel-header">
+                    <i data-lucide="tv"></i>
+                    <h2>Visual Storyboard & Player</h2>
+                </div>
+                <div class="panel-body flex-col">
+                    <!-- Interactive Discrepancy Storyboard Box -->
+                    <div class="storyboard-resolver hidden" id="storyboard-resolver-box">
+                        <div class="resolver-header">
+                            <i data-lucide="alert-triangle" class="warn-icon"></i>
+                            <div>
+                                <h3>Missing Clip Detected!</h3>
+                                <p>Reference edit contains a close-up of <strong>tying wrist straps</strong>. Missing in your footage.</p>
+                            </div>
+                        </div>
+                        <div class="resolver-comparison">
+                            <div class="comparison-card">
+                                <span>Reference Video Hook</span>
+                                <img src="/static/assets/ref_wrist_straps.png" alt="Wrist Straps Reference">
+                            </div>
+                            <div class="comparison-card missing">
+                                <span>Your Footage Gap</span>
+                                <div class="placeholder-icon">
+                                    <i data-lucide="image-off"></i>
+                                    <p>Wrist Straps Shot</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="resolver-actions">
+                            <button class="btn btn-secondary flex-1" id="btn-resolve-upload">
+                                <i data-lucide="upload"></i>
+                                <span>Upload Clip</span>
+                            </button>
+                            <button class="btn btn-accent flex-1" id="btn-resolve-generate">
+                                <i data-lucide="sparkles"></i>
+                                <span>Generate AI Shot</span>
+                            </button>
+                            <button class="btn btn-outline flex-1" id="btn-resolve-skip">
+                                <i data-lucide="skip-forward"></i>
+                                <span>Skip Clip</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Interactive Copyright Storyboard Box -->
+                    <div class="storyboard-resolver hidden" id="copyright-resolver-box" style="border-color: #eab308; background: linear-gradient(135deg, rgba(234, 179, 8, 0.12), rgba(0,0,0,0.3)); padding: 16px; border-radius: 12px; border: 1px solid rgba(234, 179, 8, 0.3); margin-bottom: 12px;">
+                        <div class="resolver-header" style="display: flex; gap: 12px; align-items: flex-start; margin-bottom: 12px;">
+                            <i data-lucide="alert-triangle" class="warn-icon" style="color: #eab308; flex-shrink: 0; width: 20px; height: 20px;"></i>
+                            <div>
+                                <h3 style="margin: 0; font-size: 0.95rem; font-weight: 600; color: #fff;">Copyright Alert!</h3>
+                                <p id="copyright-error-msg" style="margin: 4px 0 0; font-size: 0.76rem; color: rgba(255,255,255,0.7); line-height: 1.4;">The requested song may have copyright issues.</p>
+                            </div>
+                        </div>
+                        <div class="resolver-actions" style="display: flex; gap: 8px; margin-top: 14px;">
+                            <button class="btn btn-accent flex-1" id="btn-copyright-continue" style="background: #eab308; border: none; color: #000; font-weight: 600; font-size: 0.78rem; display: flex; align-items: center; justify-content: center; gap: 6px; padding: 8px 12px; cursor: pointer; border-radius: 6px;">
+                                <i data-lucide="sparkles" style="width: 14px; height: 14px;"></i>
+                                <span>Similar Vibe Track</span>
+                            </button>
+                            <button class="btn btn-secondary flex-1" id="btn-copyright-upload" style="background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.12); color: #fff; font-weight: 500; font-size: 0.78rem; display: flex; align-items: center; justify-content: center; gap: 6px; padding: 8px 12px; cursor: pointer; border-radius: 6px;">
+                                <i data-lucide="upload" style="width: 14px; height: 14px;"></i>
+                                <span>Upload Audio</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Video Preview Player Frame -->
+                    <div class="preview-player-frame">
+                        <div class="player-container">
+                            <video id="main-video-player" playsinline>
+                                <source src="" type="video/mp4">
+                                <track default kind="subtitles" srclang="en" src="" id="player-track">
+                            </video>
+                            
+                            <!-- Custom Captions Overlay -->
+                            <div class="custom-captions-container" id="custom-captions">
+                                <span class="caption-word" id="caption-text"></span>
+                            </div>
+
+                            <!-- Mock Cinematic Grading Screen Overlays -->
+                            <div class="player-overlay" id="player-grade-overlay"></div>
+                            
+                            <!-- AI Generating Progress Overlay -->
+                            <div class="player-progress-overlay hidden" id="player-rendering-spinner">
+                                <div class="spinner-spinner"></div>
+                                <h3 id="render-status-heading">Generating AI Filler Clip...</h3>
+                                <p>Sourcing cinematic elements</p>
+                            </div>
+                            
+                            <!-- Playback Control Center overlay -->
+                            <div class="player-controls-overlay">
+                                <button class="btn-play-pause" id="btn-play-pause-overlay">
+                                    <i data-lucide="play" id="play-icon-overlay"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Video Controls Bar -->
+                        <div class="player-controls-bar">
+                            <button class="btn-ctrl" id="btn-play-pause">
+                                <i data-lucide="play" id="play-icon"></i>
+                            </button>
+                            <span class="player-time" id="player-time-display">00:00 / 00:00</span>
+                            <div class="player-slider-container">
+                                <input type="range" min="0" max="100" value="0" class="player-slider" id="player-progress-bar">
+                            </div>
+                            <button class="btn-ctrl" id="btn-volume" title="Mute/Unmute">
+                                <i data-lucide="volume-2" id="volume-icon"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Reprompt Panel - appears after video renders -->
+                    <div class="reprompt-panel hidden" id="reprompt-panel">
+                        <div class="reprompt-header">
+                            <i data-lucide="sparkles" class="reprompt-icon"></i>
+                            <div>
+                                <h4>Video Ready! Want to refine it?</h4>
+                                <p>Describe changes — agents will re-edit with your new instructions.</p>
+                            </div>
+                        </div>
+                        <textarea id="reprompt-text" class="reprompt-textarea" placeholder="e.g., Make the music louder, add more captions, speed up the cuts in the middle..."></textarea>
+                        <div class="reprompt-actions">
+                            <button class="btn btn-primary flex-1" id="btn-reprompt" type="button">
+                                <i data-lucide="refresh-cw"></i> Re-Edit with Changes
+                            </button>
+                            <button class="btn btn-outline flex-1" id="btn-start-fresh" type="button">
+                                <i data-lucide="trash-2"></i> Start Fresh
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <!-- TIMELINE DOCK (BOTTOM) -->
+        <footer class="app-timeline panel">
+            <div class="panel-header timeline-header">
+                <div class="flex-row gap-2 align-center">
+                    <i data-lucide="layers"></i>
+                    <h2>Visual Multi-Track Editor Timeline</h2>
+                </div>
+                <div class="timeline-controls flex-row gap-2 align-center">
+                    <button class="btn btn-outline btn-xs" id="btn-zoom-in" title="Zoom In"><i data-lucide="zoom-in"></i></button>
+                    <button class="btn btn-outline btn-xs" id="btn-zoom-out" title="Zoom Out"><i data-lucide="zoom-out"></i></button>
+                    <button class="btn btn-outline btn-xs btn-primary" id="btn-save-timeline" title="Save Subtitle Edits" style="margin-left: 15px;"><i data-lucide="save"></i> Save Edits</button>
+                    <a href="/static/edited_output.mp4" download="edited_output.mp4" class="btn btn-outline btn-xs btn-accent" id="btn-download-video" title="Download Output Video"><i data-lucide="download"></i> Download Video</a>
+                    <a href="/static/subtitles.vtt" download="subtitles.vtt" class="btn btn-outline btn-xs" id="btn-download-vtt" title="Export VTT Subtitles"><i data-lucide="file-text"></i> Export VTT</a>
+                </div>
+            </div>
+            <div class="timeline-body" id="timeline-container">
+                <!-- Playhead Cursor Line -->
+                <div class="timeline-playhead" id="timeline-playhead-line">
+                    <div class="playhead-handle"></div>
+                </div>
+
+                <!-- Timeline Tracks Grid -->
+                <div class="timeline-tracks">
+                    <!-- 1. TIME TRACK -->
+                    <div class="track time-track">
+                        <div class="track-header">
+                            <span>Time Ruler</span>
+                        </div>
+                        <div class="track-timeline" id="ruler-ticks">
+                            <!-- JS will inject timing hashes -->
+                        </div>
+                    </div>
+
+                    <!-- 2. VIDEO TRACK -->
+                    <div class="track video-track">
+                        <div class="track-header">
+                            <i data-lucide="video" class="icon-sm"></i>
+                            <span>Video clips</span>
+                        </div>
+                        <div class="track-timeline" id="track-video-clips">
+                            <!-- Visual block representations -->
+                        </div>
+                    </div>
+
+                    <!-- 3. TRANSITION TRACK -->
+                    <div class="track transition-track">
+                        <div class="track-header">
+                            <i data-lucide="git-commit" class="icon-sm"></i>
+                            <span>Transitions</span>
+                        </div>
+                        <div class="track-timeline" id="track-transitions">
+                            <!-- Transition markers -->
+                        </div>
+                    </div>
+
+                    <!-- 4. CAPTIONS TRACK -->
+                    <div class="track caption-track">
+                        <div class="track-header">
+                            <i data-lucide="type" class="icon-sm"></i>
+                            <span>Captions</span>
+                        </div>
+                        <div class="track-timeline" id="track-captions">
+                            <!-- Subtitle blocks -->
+                        </div>
+                    </div>
+
+                    <!-- 5. AUDIO TRACK -->
+                    <div class="track audio-track">
+                        <div class="track-header">
+                            <i data-lucide="music" class="icon-sm"></i>
+                            <span>Audio sync</span>
+                        </div>
+                        <div class="track-timeline" id="track-audio-waveform">
+                            <div class="waveform-svg-container">
+                                <!-- Waveform lines SVG -->
+                            </div>
+                            <div class="beat-markers" id="track-audio-beats">
+                                <!-- Glowing points where beat hits -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 6. BG MUSIC TRACK -->
+                    <div class="track bg-music-track" style="margin-top: 5px;">
+                        <div class="track-header flex-row justify-between align-center" style="display: flex; justify-content: space-between; align-items: center; width: 100%; box-sizing: border-box; padding-right: 8px;">
+                            <div class="flex-row align-center gap-1" style="display: flex; align-items: center; gap: 4px;">
+                                <i data-lucide="headphones" class="icon-sm"></i>
+                                <span>Backing Track</span>
+                            </div>
+                            <button class="btn-add-track" id="btn-add-bg-track" title="Add Background Track" type="button" style="background:none; border:none; color:var(--color-primary); cursor:pointer; padding:2px; display:flex; align-items:center;">
+                                <i data-lucide="plus-circle" style="width:14px; height:14px;"></i>
+                            </button>
+                            <input type="file" id="input-timeline-music" accept="audio/*" style="display: none;">
+                        </div>
+                        <div class="track-timeline" id="track-bg-music">
+                            <!-- Background Music Blocks -->
+                        </div>
+                    </div>
+
+                    <!-- 7. SOUND EFFECTS TRACK -->
+                    <div class="track sfx-track" style="margin-top: 5px;">
+                        <div class="track-header flex-row justify-between align-center" style="display: flex; justify-content: space-between; align-items: center; width: 100%; box-sizing: border-box; padding-right: 8px;">
+                            <div class="flex-row align-center gap-1" style="display: flex; align-items: center; gap: 4px;">
+                                <i data-lucide="volume-2" class="icon-sm"></i>
+                                <span>Sound FX</span>
+                            </div>
+                            <button class="btn-add-track" id="btn-add-sfx-track" title="Add Sound Effect Track" type="button" style="background:none; border:none; color:var(--color-primary); cursor:pointer; padding:2px; display:flex; align-items:center;">
+                                <i data-lucide="plus-circle" style="width:14px; height:14px;"></i>
+                            </button>
+                            <input type="file" id="input-timeline-sfx" accept="audio/*" style="display: none;">
+                        </div>
+                        <div class="track-timeline" id="track-sfx-blocks">
+                            <!-- Sound Effect Blocks -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </footer>
+
+        <!-- DYNAMIC LEGAL ATTRIBUTION CREDITS PANEL -->
+        <div id="attribution-credits-panel" class="panel hidden" style="margin: 20px; padding: 20px; border-radius: 12px; background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.08);">
+            <div class="flex-row justify-between align-center" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+                <h3 style="margin:0; font-size:0.95rem; color:#fff; display:flex; align-items:center; gap:8px;">
+                    <i data-lucide="scale" style="color:var(--color-primary);"></i>
+                    <span>Project Legal Attribution Credits</span>
+                </h3>
+                <button id="btn-copy-attributions" class="btn btn-outline btn-xs" style="display:flex; align-items:center; gap:4px; font-size:0.7rem; padding:4px 8px;" type="button">
+                    <i data-lucide="copy" style="width:12px; height:12px;"></i> Copy All Credits
+                </button>
+            </div>
+            <p style="margin:0 0 10px; font-size:0.75rem; color:rgba(255,255,255,0.45);">
+                You have CC-BY (Creative Commons Attribution) audio assets on your timeline. The licenses require you to credit the creators. Copy the list below and paste it into your video description (e.g. YouTube description, Instagram description):
+            </p>
+            <textarea id="attribution-credits-text" class="reprompt-textarea" style="min-height:80px; font-family: monospace; font-size:0.75rem; color:rgba(255,255,255,0.75); border:1px solid rgba(255,255,255,0.08);" readonly></textarea>
+        </div>
+    </div>
+
+    <!-- SUBTITLE EDITOR MODAL -->
+    <div id="subtitle-editor-modal" class="modal hidden" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); display:flex; justify-content:center; align-items:center; z-index:9999;">
+        <div class="modal-content glass" style="background:rgba(20,22,28,0.9); border:1px solid rgba(255,255,255,0.1); border-radius:12px; padding:25px; width:450px; box-shadow:0 15px 30px rgba(0,0,0,0.5); backdrop-filter:blur(20px);">
+            <h3 class="flex-row gap-2 align-center" style="margin-top:0; font-size:1.2rem; color:var(--color-text);"><i data-lucide="edit-3"></i> Edit Subtitle Segment</h3>
+            <div class="input-group" style="margin-top: 20px;">
+                <label for="edit-caption-text" style="display:block; margin-bottom:8px; font-size:0.85rem; color:rgba(255,255,255,0.6);">Caption Subtitle Text</label>
+                <input type="text" id="edit-caption-text" class="form-input" style="width: 100%; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.15); border-radius:6px; padding:10px; color:#fff;" placeholder="Enter text...">
+            </div>
+            <div class="input-row flex-row gap-3" style="margin-top: 20px; margin-bottom: 25px;">
+                <div class="input-group flex-1">
+                    <label for="edit-caption-start" style="display:block; margin-bottom:8px; font-size:0.85rem; color:rgba(255,255,255,0.6);">Start Time (seconds)</label>
+                    <input type="number" id="edit-caption-start" class="form-input" style="width: 100%; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.15); border-radius:6px; padding:10px; color:#fff;" step="0.1" min="0">
+                </div>
+                <div class="input-group flex-1">
+                    <label for="edit-caption-end" style="display:block; margin-bottom:8px; font-size:0.85rem; color:rgba(255,255,255,0.6);">End Time (seconds)</label>
+                    <input type="number" id="edit-caption-end" class="form-input" style="width: 100%; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.15); border-radius:6px; padding:10px; color:#fff;" step="0.1" min="0">
+                </div>
+            </div>
+            <div class="modal-actions flex-row justify-end gap-2">
+                <button id="btn-cancel-edit" class="btn btn-outline btn-sm" style="border:1px solid rgba(255,255,255,0.15); border-radius:6px; padding:8px 16px; background:transparent; color:#fff; cursor:pointer;">Cancel</button>
+                <button id="btn-save-edit" class="btn btn-primary btn-sm" style="background:var(--color-primary); border:none; border-radius:6px; padding:8px 16px; color:#fff; cursor:pointer; font-weight:bold;">Save Changes</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Hidden dummy audio element to satisfy app.js soundtrack sync references safely -->
+    <audio id="soundtrack-audio" style="display: none;"></audio>
+
+    <!-- TRACK EDITOR MODAL -->
+    <div id="track-editor-modal" class="modal hidden" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); display:flex; justify-content:center; align-items:center; z-index:9999;">
+        <div class="modal-content glass" style="background:rgba(20,22,28,0.9); border:1px solid rgba(255,255,255,0.1); border-radius:12px; padding:25px; width:450px; box-shadow:0 15px 30px rgba(0,0,0,0.5); backdrop-filter:blur(20px);">
+            <h3 class="flex-row gap-2 align-center" style="margin-top:0; font-size:1.2rem; color:var(--color-text); display:flex; align-items:center; gap:8px;"><i data-lucide="sliders"></i> Edit Audio Track</h3>
+            
+            <div class="input-group" style="margin-top: 15px;">
+                <span id="track-edit-name" style="font-weight: 600; color: #a78bfa; font-size: 0.9rem; word-break: break-all;">Track Name</span>
+            </div>
+
+            <div class="input-group" style="margin-top: 20px;">
+                <label style="display:flex; justify-content:space-between; margin-bottom:8px; font-size:0.85rem; color:rgba(255,255,255,0.6);">
+                    <span>Volume</span>
+                    <span id="track-edit-vol-val" style="font-weight:bold; color:var(--color-primary);">50%</span>
+                </label>
+                <input type="range" id="track-edit-vol" min="0" max="100" value="50" style="width:100%; accent-color:var(--color-primary); cursor:pointer;">
+            </div>
+
+            <div class="input-row flex-row gap-3" style="margin-top: 20px; margin-bottom: 25px; display:flex; gap:12px;">
+                <div class="input-group flex-1" style="flex:1;">
+                    <label for="track-edit-start" style="display:block; margin-bottom:8px; font-size:0.85rem; color:rgba(255,255,255,0.6);">Timeline Start (s)</label>
+                    <input type="number" id="track-edit-start" class="form-input" style="width: 100%; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.15); border-radius:6px; padding:10px; color:#fff; box-sizing:border-box;" step="0.1" min="0">
+                </div>
+                <div class="input-group flex-1" style="flex:1;">
+                    <label for="track-edit-end" style="display:block; margin-bottom:8px; font-size:0.85rem; color:rgba(255,255,255,0.6);">Timeline End (s)</label>
+                    <input type="number" id="track-edit-end" class="form-input" style="width: 100%; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.15); border-radius:6px; padding:10px; color:#fff; box-sizing:border-box;" step="0.1" min="0">
+                </div>
+            </div>
+
+            <div class="modal-actions flex-row justify-between align-center" style="display:flex; justify-content:space-between; align-items:center;">
+                <button id="btn-delete-track" class="btn btn-outline btn-sm" style="border:1px solid #f87171; border-radius:6px; padding:8px 16px; background:transparent; color:#f87171; cursor:pointer;">Delete Track</button>
+                <div style="display:flex; gap:8px;">
+                    <button id="btn-cancel-track-edit" class="btn btn-outline btn-sm" style="border:1px solid rgba(255,255,255,0.15); border-radius:6px; padding:8px 16px; background:transparent; color:#fff; cursor:pointer;">Cancel</button>
+                    <button id="btn-save-track-edit" class="btn btn-primary btn-sm" style="background:var(--color-primary); border:none; border-radius:6px; padding:8px 16px; color:#fff; cursor:pointer; font-weight:bold;">Apply</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- SETTINGS MODAL -->
+    <div id="settings-modal" class="modal hidden" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); display:flex; justify-content:center; align-items:center; z-index:9999;">
+        <div class="modal-content glass" style="background:rgba(20,22,28,0.9); border:1px solid rgba(255,255,255,0.1); border-radius:12px; padding:25px; width:450px; box-shadow:0 15px 30px rgba(0,0,0,0.5); backdrop-filter:blur(20px);">
+            <h3 class="flex-row gap-2 align-center" style="margin-top:0; font-size:1.2rem; color:var(--color-text); display:flex; align-items:center; gap:8px;"><i data-lucide="settings"></i> App Settings</h3>
+            <p style="font-size:0.78rem; color:rgba(255,255,255,0.5); margin-bottom: 20px;">Standard Music and SFX libraries are fully managed on the server. Configure your AI keys below.</p>
+            
+            <div class="input-group" style="margin-bottom: 25px;">
+                <label for="settings-elevenlabs-key" style="display:block; margin-bottom:8px; font-size:0.85rem; color:rgba(255,255,255,0.7); font-weight: 500;">ElevenLabs API Key</label>
+                <input type="password" id="settings-elevenlabs-key" class="form-input" style="width: 100%; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.15); border-radius:6px; padding:10px; color:#fff; box-sizing:border-box;" placeholder="Enter ElevenLabs API key">
+                <span style="font-size: 0.65rem; color: rgba(255,255,255,0.4); display: block; margin-top: 4px;">Used to generate custom AI Sound Effects. Get yours at elevenlabs.io.</span>
+            </div>
+
+            <div class="modal-actions flex-row justify-end gap-2" style="display:flex; justify-content:flex-end; gap:8px;">
+                <button id="btn-cancel-settings" class="btn btn-outline btn-sm" style="border:1px solid rgba(255,255,255,0.15); border-radius:6px; padding:8px 16px; background:transparent; color:#fff; cursor:pointer;" type="button">Cancel</button>
+                <button id="btn-save-settings" class="btn btn-primary btn-sm" style="background:var(--color-primary); border:none; border-radius:6px; padding:8px 16px; color:#fff; cursor:pointer; font-weight:bold;" type="button">Save Settings</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: All Clips & Photos View -->
+    <div id="clips-modal" class="modal hidden" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); display:flex; justify-content:center; align-items:center; z-index:9999;">
+        <div class="modal-content glass" style="background:rgba(20,22,28,0.9); border:1px solid rgba(255,255,255,0.1); border-radius:12px; padding:25px; width:500px; max-height:80vh; display:flex; flex-direction:column; box-shadow:0 15px 30px rgba(0,0,0,0.5); backdrop-filter:blur(20px);">
+            <div class="modal-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; border-bottom:1px solid rgba(255,255,255,0.08); padding-bottom:10px;">
+                <h3 style="margin:0; color:#fff; font-size:1.1rem; display:flex; align-items:center; gap:8px;">
+                    <i data-lucide="video" style="color:var(--color-primary); width: 18px; height: 18px;"></i>
+                    <span>All Uploaded Footage &amp; Photos</span>
+                </h3>
+                <span id="btn-close-clips-modal" style="cursor:pointer; color:rgba(255,255,255,0.5); font-size:1.5rem; font-weight:bold; line-height: 1;">&times;</span>
+            </div>
+            
+            <div id="clips-modal-list" style="flex:1; overflow-y:auto; display:flex; flex-direction:column; gap:10px; padding-right:5px; margin-bottom:15px; min-height: 150px;">
+                <!-- List dynamically generated in JS -->
+            </div>
+            
+            <div class="modal-actions" style="display:flex; justify-content:space-between; align-items:center; border-top:1px solid rgba(255,255,255,0.08); padding-top:12px;">
+                <button type="button" class="btn btn-outline btn-sm" id="btn-clear-all-clips" style="border:1px solid #f87171; color:#f87171; background:transparent; display:flex; align-items:center; gap:4px; cursor:pointer;">
+                    <i data-lucide="trash-2" style="width:14px; height:14px;"></i> Clear All
+                </button>
+                <button type="button" class="btn btn-accent btn-sm" id="btn-modal-add-more" style="display:flex; align-items:center; gap:4px; cursor:pointer;">
+                    <i data-lucide="plus" style="width:14px; height:14px;"></i> Add More
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/app.js?v=1.3"></script>
+    <script>
+        // Init Lucide icons
+        lucide.createIcons();
+    </script>
+</body>
+</html>

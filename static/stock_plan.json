@@ -1,0 +1,36 @@
+{
+  "missing_shot_action": "skip",
+  "raw_files": [
+    "fitness-workout-gym-exercise-lifestyle-260nw-1420574846.webp",
+    "smiling-young-woman-leaning-on-barbell-at-health-club.webp",
+    "man-using-smartphone-in-gym.webp",
+    "dumbbell-fitness-headphones-with-man-gym-bodybuilding-strength-training-workout-routine-exercise-music-weightlifting-with-bodybuilder-health-club-physical-challenge_590464-560664.webp"
+  ],
+  "inspected_metadata": [],
+  "cuts": [
+    {
+      "scene": 1,
+      "start": 0.0,
+      "end": 3.0,
+      "description": "Intro Vibe"
+    },
+    {
+      "scene": 2,
+      "start": 3.0,
+      "end": 6.0,
+      "description": "Setup / Prep Action"
+    },
+    {
+      "scene": 3,
+      "start": 6.0,
+      "end": 9.0,
+      "description": "Core Action Vibe"
+    },
+    {
+      "scene": 4,
+      "start": 9.0,
+      "end": 12.0,
+      "description": "Climax / Outro"
+    }
+  ]
+}

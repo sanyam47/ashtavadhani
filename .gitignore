@@ -1,0 +1,43 @@
+# Environments
+.env
+.venv
+env/
+venv/
+ENV/
+
+# Python Cache
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Temporary Editor/Project Files
+static/uploads/*
+!static/uploads/.gitkeep
+static/edited_output.mp4
+static/timeline_data.json
+static/creative_plan.json
+static/frame_analysis.json
+static/music_plan.json
+static/sfx_plan.json
+static/transitions_plan.json
+static/graphics_plan.json
+static/subtitles.json
+static/subtitles.vtt
+static/text_overlays.json
+static/gemini_usage.json
+static/user_profile.json
+
+# Audio downloads (app will download them on startup if missing)
+static/music/*
+!static/music/.gitkeep
+static/sfx/*
+!static/sfx/.gitkeep
+
+# IDEs
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
