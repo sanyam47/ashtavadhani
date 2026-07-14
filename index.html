@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ashtavadhani - Multi-Agent Collaborative Video Synthesis</title>
+    <title>Ashtavadhani - Multi-Agent Collaborative AI Video Engine</title>
     <!-- Google Fonts: Inter & Outfit -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -13,7 +13,7 @@
     <style>
         :root {
             --bg-dark: #07090d;
-            --bg-panel: rgba(20, 24, 33, 0.7);
+            --bg-panel: rgba(20, 24, 33, 0.75);
             --border-color: rgba(255, 255, 255, 0.08);
             --color-primary: #8b5cf6; /* Amethyst Purple */
             --color-accent: #06b6d4;  /* Electric Teal */
@@ -72,9 +72,9 @@
 
         /* Container */
         .container {
-            max-width: 1200px;
+            max-width: 1100px;
             margin: 0 auto;
-            padding: 0 2rem;
+            padding: 0 1.5rem;
         }
 
         /* Header */
@@ -91,10 +91,11 @@
             gap: 0.75rem;
         }
         .brand-logo {
-            width: 40px;
-            height: 40px;
-            border-radius: 8px;
+            width: 44px;
+            height: 44px;
+            border-radius: 10px;
             overflow: hidden;
+            box-shadow: 0 0 15px rgba(139, 92, 246, 0.3);
         }
         .brand-logo img {
             width: 100%;
@@ -103,16 +104,19 @@
         }
         .brand-text h1 {
             font-family: var(--font-heading);
-            font-size: 1.25rem;
-            font-weight: 800;
+            font-size: 1.35rem;
+            font-weight: 900;
             letter-spacing: 0.5px;
+            background: linear-gradient(135deg, #fff 60%, var(--text-muted) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
         }
         .github-btn {
             display: flex;
             align-items: center;
             gap: 8px;
             padding: 8px 16px;
-            background: rgba(255,255,255,0.05);
+            background: rgba(255,255,255,0.04);
             border: 1px solid var(--border-color);
             border-radius: 8px;
             color: var(--text-main);
@@ -122,14 +126,14 @@
             transition: all 0.3s ease;
         }
         .github-btn:hover {
-            background: rgba(255,255,255,0.1);
+            background: rgba(255,255,255,0.08);
             border-color: rgba(255,255,255,0.2);
         }
 
         /* Hero Section */
         .hero {
             text-align: center;
-            padding: 6rem 0 4rem;
+            padding: 6rem 0 3rem;
             position: relative;
         }
         .hero-badge {
@@ -152,7 +156,7 @@
             font-size: 3.5rem;
             font-weight: 900;
             line-height: 1.15;
-            letter-spacing: -1px;
+            letter-spacing: -1.5px;
             margin-bottom: 1.5rem;
             background: linear-gradient(135deg, #fff 40%, rgba(255,255,255,0.7) 100%);
             -webkit-background-clip: text;
@@ -166,7 +170,7 @@
         .hero-desc {
             font-size: 1.15rem;
             color: var(--text-muted);
-            max-width: 700px;
+            max-width: 720px;
             margin: 0 auto 2.5rem;
         }
         .cta-buttons {
@@ -192,7 +196,7 @@
         .btn-primary {
             background: linear-gradient(135deg, var(--color-primary) 0%, #7c3aed 100%);
             color: #fff;
-            box-shadow: 0 4px 20px rgba(139, 92, 246, 0.4);
+            box-shadow: 0 4px 25px rgba(139, 92, 246, 0.35);
         }
         .btn-primary:hover {
             filter: brightness(1.1);
@@ -206,74 +210,15 @@
             backdrop-filter: var(--glass-blur);
         }
         .btn-secondary:hover {
-            background: rgba(255, 255, 255, 0.1);
-            border-color: rgba(255,255,255,0.25);
+            background: rgba(255, 255, 255, 0.08);
+            border-color: rgba(255,255,255,0.2);
             transform: translateY(-2px);
         }
 
-        /* App Mockup Preview */
-        .preview-mockup {
-            max-width: 1000px;
-            margin: 2rem auto 6rem;
-            background: var(--bg-panel);
-            backdrop-filter: var(--glass-blur);
-            border: 1px solid var(--border-color);
-            border-radius: 16px;
-            padding: 1.5rem;
-            box-shadow: 0 20px 50px rgba(0,0,0,0.5);
-            position: relative;
-        }
-        .preview-screen {
-            width: 100%;
-            height: 480px;
-            background: #090c13;
-            border-radius: 10px;
-            border: 1px solid rgba(255,255,255,0.05);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            overflow: hidden;
-            position: relative;
-        }
-        .mock-logo {
-            width: 180px;
-            height: 180px;
-            animation: float 4s ease-in-out infinite;
-        }
-        .mock-logo img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-        }
-        .mock-overlay {
-            position: absolute;
-            bottom: 24px;
-            text-align: center;
-            width: 100%;
-        }
-        .mock-badge {
-            display: inline-block;
-            background: rgba(250, 204, 21, 0.1);
-            border: 1px solid rgba(250, 204, 21, 0.3);
-            color: #facc15;
-            padding: 4px 12px;
-            border-radius: 6px;
-            font-size: 0.85rem;
-            font-weight: 700;
-            text-transform: uppercase;
-            font-style: italic;
-            text-shadow: 0 2px 4px rgba(0,0,0,0.5);
-        }
-
-        @keyframes float {
-            0%, 100% { transform: translateY(0); }
-            50% { transform: translateY(-12px); }
-        }
-
-        /* Features Section */
+        /* Feature Section */
         .section-title {
             text-align: center;
-            margin-bottom: 4rem;
+            margin: 6rem 0 3rem;
         }
         .section-title h3 {
             font-family: var(--font-heading);
@@ -285,9 +230,57 @@
             margin-top: 0.5rem;
         }
 
+        /* Features Columns */
+        .features-showcase {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+            margin-bottom: 6rem;
+        }
+        .feature-box {
+            background: var(--bg-panel);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 2.25rem;
+            transition: all 0.3s ease;
+        }
+        .feature-box:hover {
+            border-color: rgba(139, 92, 246, 0.3);
+            box-shadow: 0 10px 30px rgba(139, 92, 246, 0.05);
+        }
+        .feature-icon-wrapper {
+            width: 48px;
+            height: 48px;
+            border-radius: 10px;
+            background: rgba(6, 182, 212, 0.1);
+            border: 1px solid rgba(6, 182, 212, 0.2);
+            color: var(--color-accent);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 1.5rem;
+        }
+        .feature-box.purple-theme .feature-icon-wrapper {
+            background: rgba(139, 92, 246, 0.1);
+            border: 1px solid rgba(139, 92, 246, 0.2);
+            color: var(--color-primary);
+        }
+        .feature-box h4 {
+            font-family: var(--font-heading);
+            font-size: 1.35rem;
+            font-weight: 700;
+            margin-bottom: 0.75rem;
+        }
+        .feature-box p {
+            font-size: 0.9rem;
+            color: var(--text-muted);
+            line-height: 1.6;
+        }
+
+        /* Agents Layout Grid */
         .agents-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
             gap: 1.5rem;
             margin-bottom: 6rem;
         }
@@ -302,10 +295,11 @@
         .agent-card:hover {
             border-color: var(--color-primary);
             transform: translateY(-4px);
+            box-shadow: 0 10px 30px rgba(139,92,246,0.1);
         }
         .agent-icon {
-            width: 44px;
-            height: 44px;
+            width: 40px;
+            height: 40px;
             background: rgba(139, 92, 246, 0.1);
             border: 1px solid rgba(139, 92, 246, 0.2);
             border-radius: 8px;
@@ -315,18 +309,143 @@
             margin-bottom: 1.25rem;
             color: var(--color-primary);
         }
-        .agent-icon i {
-            width: 22px;
-            height: 22px;
-        }
         .agent-card h4 {
             font-family: var(--font-heading);
-            font-size: 1.15rem;
+            font-size: 1.1rem;
             font-weight: 700;
             margin-bottom: 0.5rem;
         }
         .agent-card p {
             font-size: 0.85rem;
+            color: var(--text-muted);
+            line-height: 1.5;
+        }
+
+        /* Workflow Steps */
+        .workflow {
+            margin-bottom: 6rem;
+            background: var(--bg-panel);
+            border: 1px solid var(--border-color);
+            border-radius: 20px;
+            padding: 3rem;
+        }
+        .workflow-title {
+            text-align: center;
+            margin-bottom: 3rem;
+        }
+        .workflow-title h3 {
+            font-family: var(--font-heading);
+            font-size: 1.85rem;
+            font-weight: 800;
+        }
+        .workflow-steps {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 2rem;
+            position: relative;
+        }
+        .step {
+            text-align: center;
+            position: relative;
+        }
+        .step-num {
+            width: 36px;
+            height: 36px;
+            background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-accent) 100%);
+            color: #fff;
+            font-weight: 700;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 1rem;
+            font-size: 0.9rem;
+            box-shadow: 0 0 15px rgba(6, 182, 212, 0.4);
+        }
+        .step h5 {
+            font-family: var(--font-heading);
+            font-size: 1.05rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+        }
+        .step p {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+        }
+
+        /* Getting Started Guide */
+        .guide-section {
+            background: rgba(139, 92, 246, 0.03);
+            border: 1px dashed rgba(139, 92, 246, 0.2);
+            border-radius: 16px;
+            padding: 2.5rem;
+            margin-bottom: 6rem;
+        }
+        .guide-section h3 {
+            font-family: var(--font-heading);
+            font-size: 1.5rem;
+            font-weight: 800;
+            margin-bottom: 1.5rem;
+            text-align: center;
+        }
+        .guide-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+        }
+        .guide-step {
+            background: rgba(7, 9, 13, 0.5);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            padding: 1.25rem;
+        }
+        .guide-step h4 {
+            font-size: 0.95rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+            color: #c084fc;
+        }
+        .guide-step p {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+        }
+        .guide-step code {
+            display: block;
+            background: rgba(255,255,255,0.05);
+            padding: 6px;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 0.8rem;
+            margin-top: 8px;
+            border: 1px solid rgba(255,255,255,0.05);
+        }
+
+        /* FAQ Section */
+        .faq-section {
+            margin-bottom: 6rem;
+        }
+        .faq-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 1.5rem;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        .faq-item {
+            background: var(--bg-panel);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 1.75rem;
+        }
+        .faq-item h4 {
+            font-family: var(--font-heading);
+            font-size: 1.15rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+            color: #fff;
+        }
+        .faq-item p {
+            font-size: 0.9rem;
             color: var(--text-muted);
             line-height: 1.5;
         }
@@ -357,7 +476,7 @@
                 </div>
             </div>
             <a href="https://github.com/sanyam47/ashtavadhani" class="github-btn" target="_blank">
-                <i data-lucide="github"></i> GitHub
+                <i data-lucide="github"></i> GitHub Project
             </a>
         </header>
 
@@ -368,7 +487,7 @@
             </div>
             <h2>Eight Specialized AI Minds.<br><span>One Perfect Video Edit.</span></h2>
             <p class="hero-desc">
-                Ashtavadhani performs 8 highly complex editing operations concurrently—analyzing frames, slicing b-rolls, syncing beat drops, rendering transitions, and outputting subtitles for stunning reels in seconds.
+                Ashtavadhani is an advanced multi-agent collaborative editing engine. By running 8 specialized AI agents concurrently, it automates video cuts, extracts audio energy waves, matches reference videos, overlay sound effects, and transcribes kinetic subtitles inside a single packaged app.
             </p>
             <div class="cta-buttons">
                 <a href="https://github.com/sanyam47/ashtavadhani/releases/download/v1.0.0/Ashtavadhani.exe" class="btn btn-primary">
@@ -380,78 +499,167 @@
             </div>
         </section>
 
-        <!-- APP PREVIEW MOCKUP -->
-        <div class="preview-mockup">
-            <div class="preview-screen">
-                <div class="mock-logo">
-                    <img src="/static/logo.png" alt="Ashtavadhani logo">
+        <!-- CORE FEATURES SHOWCASE -->
+        <section class="section-title">
+            <h3>Automating Creative Directing</h3>
+            <p>High-end algorithms handle the mathematical complexity of professional editing</p>
+        </section>
+
+        <section class="features-showcase">
+            <!-- Feature 1 -->
+            <div class="feature-box purple-theme">
+                <div class="feature-icon-wrapper"><i data-lucide="music-4"></i></div>
+                <h4>Mathematical Beat Sync</h4>
+                <p>
+                    The app maps the amplitude peaks and frequency shifts of your selected music track. It dynamically recalculates cut lengths to ensure transitions land precisely on beat drops.
+                </p>
+            </div>
+            <!-- Feature 2 -->
+            <div class="feature-box">
+                <div class="feature-icon-wrapper"><i data-lucide="palette"></i></div>
+                <h4>Automated Vibe Grading</h4>
+                <p>
+                    Adapts color settings to match the mood of the track. From moody phonk gradients to warm cooking tones and tech-minimalist contrasts, colors align with your prompt.
+                </p>
+            </div>
+            <!-- Feature 3 -->
+            <div class="feature-box purple-theme">
+                <div class="feature-icon-wrapper"><i data-lucide="languages"></i></div>
+                <h4>Kinetic Speech Captions</h4>
+                <p>
+                    Uses localized transcription engines to sync subtitles. Captions are aligned word-for-word, styled to match modern short-form TikTok/Reels aesthetics.
+                </p>
+            </div>
+        </section>
+
+        <!-- WORKFLOW TIMELINE -->
+        <section class="workflow">
+            <div class="workflow-title">
+                <h3>The Collaborative Editing Pipeline</h3>
+            </div>
+            <div class="workflow-steps">
+                <div class="step">
+                    <div class="step-num">1</div>
+                    <h5>Import Assets</h5>
+                    <p>Load raw clips, background music, or custom reference video.</p>
                 </div>
-                <div class="mock-overlay">
-                    <div class="mock-badge">ACTIVE SUBTITLE SYNC</div>
+                <div class="step">
+                    <div class="step-num">2</div>
+                    <h5>Agent Discussion</h5>
+                    <p>8 agents coordinate and write an editing timeline plan.</p>
+                </div>
+                <div class="step">
+                    <div class="step-num">3</div>
+                    <h5>Audio-Visual Sync</h5>
+                    <p>Cuts are synchronized on beat waves and energy spikes.</p>
+                </div>
+                <div class="step">
+                    <div class="step-num">4</div>
+                    <h5>Local Compilation</h5>
+                    <p>App renders the finalized edit directly on your system CPU.</p>
                 </div>
             </div>
-        </div>
+        </section>
 
-        <!-- 8 AGENTS SECTION -->
+        <!-- THE 8 AGENTS COUNCIL -->
         <section class="section-title">
-            <h3>Meet the Collaborative Council</h3>
-            <p>Our eight specialized agents coordinate in parallel to synthesize your clips</p>
+            <h3>Meet the Ashtavadhani Council</h3>
+            <p>Eight specialized agents working in unison, named after the ancient 8-mind performance</p>
         </section>
 
         <section class="agents-grid">
-            <!-- Agent 1 -->
             <div class="agent-card">
                 <div class="agent-icon"><i data-lucide="sliders"></i></div>
                 <h4>1. Manager Agent</h4>
-                <p>Receives edit instructions, defines pacing requirements, and assigns tasks.</p>
+                <p>Oversees the creative scope, assigns tasks to sub-agents, and plans the sequence structure.</p>
             </div>
-            <!-- Agent 2 -->
             <div class="agent-card">
                 <div class="agent-icon"><i data-lucide="eye"></i></div>
                 <h4>2. Vision Agent</h4>
-                <p>Inspects every frame to evaluate energy levels and filter out blurry clips.</p>
+                <p>Inspects video frames, classifies clip energy levels, and checks for blur or poor exposure.</p>
             </div>
-            <!-- Agent 3 -->
             <div class="agent-card">
                 <div class="agent-icon"><i data-lucide="clapperboard"></i></div>
                 <h4>3. Reference Agent</h4>
-                <p>Decodes and extracts pacing/timing details from reference Instagram reels.</p>
+                <p>Analyzes user-provided reference videos to copy specific pacing patterns and edit styles.</p>
             </div>
-            <!-- Agent 4 -->
             <div class="agent-card">
                 <div class="agent-icon"><i data-lucide="music"></i></div>
                 <h4>4. Music Agent</h4>
-                <p>Performs NumPy-based audio profiling to align cuts directly to beat drops.</p>
+                <p>Analyzes the sound waves of your audio track to map transitions directly to the rhythm.</p>
             </div>
-            <!-- Agent 5 -->
             <div class="agent-card">
                 <div class="agent-icon"><i data-lucide="volume-2"></i></div>
                 <h4>5. SFX Agent</h4>
-                <p>Identifies visual highlights and maps sound effects (swish, hit) dynamically.</p>
+                <p>Identifies peak action moments and adds contextual sound effects like swooshes and hits.</p>
             </div>
-            <!-- Agent 6 -->
             <div class="agent-card">
                 <div class="agent-icon"><i data-lucide="move"></i></div>
                 <h4>6. Transitions Agent</h4>
-                <p>Calculates and schedules linear zoom speed maps and whip pans.</p>
+                <p>Calculates dynamic visual cuts, including zoom-ins, zoom-outs, and whip pans.</p>
             </div>
-            <!-- Agent 7 -->
             <div class="agent-card">
                 <div class="agent-icon"><i data-lucide="palette"></i></div>
                 <h4>7. Motion Graphics Agent</h4>
-                <p>Establishes overall visual styling, color grading presets, and titles.</p>
+                <p>Configures custom visual presets, filters, overlays, and color grading templates.</p>
             </div>
-            <!-- Agent 8 -->
             <div class="agent-card">
                 <div class="agent-icon"><i data-lucide="languages"></i></div>
                 <h4>8. Caption Agent</h4>
-                <p>Uses faster-whisper speech recognition to transcribe and align text subtitles.</p>
+                <p>Transcribes spoken vocals and maps kinetic styled subtitles to the timeline.</p>
+            </div>
+        </section>
+
+        <!-- GETTING STARTED GUIDE -->
+        <section class="guide-section">
+            <h3>How to Get Started in 60 Seconds</h3>
+            <div class="guide-grid">
+                <div class="guide-step">
+                    <h4>Step 1: Download App</h4>
+                    <p>Click the download button above to get the compiled standalone application executable.</p>
+                </div>
+                <div class="guide-step">
+                    <h4>Step 2: Launch App</h4>
+                    <p>Double-click the <code>Ashtavadhani.exe</code> file. No Python installation is needed!</p>
+                </div>
+                <div class="guide-step">
+                    <h4>Step 3: Enter Trial Key</h4>
+                    <p>Unlock the dashboard by entering the default trial license key when prompted:</p>
+                    <code>ASHTA-FREE-TRIAL</code>
+                </div>
+            </div>
+        </section>
+
+        <!-- FAQ SECTION -->
+        <section class="section-title">
+            <h3>Frequently Asked Questions</h3>
+            <p>Everything you need to know about the Ashtavadhani platform</p>
+        </section>
+
+        <section class="faq-grid">
+            <div class="faq-item">
+                <h4>How does the app compile videos locally?</h4>
+                <p>
+                    Ashtavadhani packages a localized environment containing python compilers, ffmpeg, and moviepy. It executes all video render workloads directly on your computer's CPU, keeping the operations completely secure.
+                </p>
+            </div>
+            <div class="faq-item">
+                <h4>What are the AI Credits in the dashboard?</h4>
+                <p>
+                    Google Gemini provides free credits for API requests. The app displays your remaining credits. If your credits run out, the app automatically switches to the "Free Version" and uses local pixel-motion heuristics for editing without crashing.
+                </p>
+            </div>
+            <div class="faq-item">
+                <h4>Is my footage uploaded to any server?</h4>
+                <p>
+                    No. Unlike web-based video editors, all your raw files, clips, and audio tracks remain strictly on your local hard drive. The only network request made is a text-based semantic exchange with the Google Gemini API to calculate timeline plans.
+                </p>
             </div>
         </section>
 
         <!-- FOOTER -->
         <footer>
-            <p>&copy; 2026 Ashtavadhani. Designed for high-speed multi-agent local video synthesis.</p>
+            <p>&copy; 2026 Ashtavadhani. Released under MIT License. All video processing is run locally.</p>
         </footer>
     </div>
 
