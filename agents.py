@@ -573,11 +573,17 @@ class VisionAgent(BaseAgent):
         except Exception as e:
             yield self.log(f"Color analysis warning: {e}", "WARNING")
 
-        # Derive best cut points and climax from analysis
-        good_cuts = sorted([e["time"] for e in frame_analysis if e.get("is_good_cut_point") and not e.get("is_blurry")])
-        climax_entry = max(frame_analysis, key=lambda e: e.get("energy_level", 0))
-        climax_time = climax_entry["time"]
-        funny_cuts = sorted([e["time"] for e in frame_analysis if e.get("is_funny_moment", False)])
+        # Derive best cut points and climax from analysis safely
+        if not frame_analysis:
+            good_cuts = []
+            climax_time = 0.0
+            climax_entry = {"action_detected": "none", "energy_level": 0}
+            funny_cuts = []
+        else:
+            good_cuts = sorted([e["time"] for e in frame_analysis if e.get("is_good_cut_point") and not e.get("is_blurry")])
+            climax_entry = max(frame_analysis, key=lambda e: e.get("energy_level", 0))
+            climax_time = climax_entry["time"]
+            funny_cuts = sorted([e["time"] for e in frame_analysis if e.get("is_funny_moment", False)])
 
         yield self.log(f"Best cut points identified: {good_cuts}")
         yield self.log(f"Climax moment: {climax_time}s — '{climax_entry.get('action_detected', 'unknown')}' (energy {climax_entry.get('energy_level', '?')}/10)")
