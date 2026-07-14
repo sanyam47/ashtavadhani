@@ -135,10 +135,17 @@ for name, url in library_assets.items():
 # Mount the static directory so the HTML/CSS/JS frontend and output video files are served
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
-@app.get("/")
-async def root():
-    # Redirect root URL to our frontend home page
-    return RedirectResponse(url="/static/index.html")
+from fastapi.responses import HTMLResponse
+
+@app.get("/", response_class=HTMLResponse)
+async def get_landing_page():
+    with open("index.html", encoding="utf-8") as f:
+        return f.read()
+
+@app.get("/dashboard", response_class=HTMLResponse)
+async def get_dashboard():
+    with open("static/index.html", encoding="utf-8") as f:
+        return f.read()
 
 @app.post("/api/upload")
 async def upload_files(
