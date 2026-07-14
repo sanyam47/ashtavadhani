@@ -3164,8 +3164,62 @@ function setupAttributionCopy() {
     });
 }
 
+// LICENSE SYSTEM
+async function checkLicenseStatus() {
+    try {
+        const res = await fetch('/api/license/check');
+        const data = await res.json();
+        const overlay = document.getElementById('license-overlay');
+        if (data.valid) {
+            if (overlay) overlay.classList.add('hidden');
+        } else {
+            if (overlay) overlay.classList.remove('hidden');
+            setupLicenseActivation();
+        }
+    } catch (e) {
+        console.log('Failed to check license status:', e);
+    }
+}
+
+function setupLicenseActivation() {
+    const btn = document.getElementById('btn-activate-license');
+    const input = document.getElementById('input-license-key');
+    if (!btn || !input) return;
+    
+    btn.addEventListener('click', async () => {
+        const key = input.value.trim();
+        if (!key) { alert('Please enter a license key.'); return; }
+        
+        btn.disabled = true;
+        btn.innerHTML = '<i data-lucide="loader" class="spin-icon"></i> Verifying...';
+        lucide.createIcons();
+        
+        try {
+            const res = await fetch('/api/license/activate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ key })
+            });
+            const data = await res.json();
+            if (data.valid) {
+                document.getElementById('license-overlay').classList.add('hidden');
+                alert('Ashtavadhani unlocked successfully! Thank you.');
+            } else {
+                alert('Invalid or expired license key: ' + data.message);
+            }
+        } catch (e) {
+            alert('License activation request failed: ' + e.message);
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = '<i data-lucide="key"></i> Verify & Unlock';
+            lucide.createIcons();
+        }
+    });
+}
+
 // Window Onload triggers
 window.addEventListener('load', () => {
+    checkLicenseStatus();
     init();
     renderMusicList();
     renderSfxList();

@@ -41,3 +41,8 @@ static/sfx/*
 *.njsproj
 *.sln
 *.sw?
+
+# PyInstaller
+*.spec
+build/
+dist/

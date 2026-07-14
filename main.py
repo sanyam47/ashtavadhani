@@ -1255,15 +1255,54 @@ async def generate_ai_music(payload: dict):
         raise HTTPException(status_code=500, detail=f"AI music synthesis failed: {str(e)}")
 
 
+# LICENSE LOCK ENDPOINTS
+@app.get("/api/license/check")
+async def check_license():
+    license_path = "static/license.json"
+    if os.path.exists(license_path):
+        try:
+            with open(license_path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                if data.get("valid"):
+                    return {"valid": True}
+        except Exception:
+            pass
+    return {"valid": False}
+
+@app.post("/api/license/activate")
+async def activate_license(payload: dict):
+    key = payload.get("key", "").strip()
+    if not key:
+        raise HTTPException(status_code=400, detail="License key cannot be empty.")
+    
+    # 1. Default Trial Key
+    if key == "ASHTA-FREE-TRIAL":
+        with open("static/license.json", "w", encoding="utf-8") as f:
+            json.dump({"key": key, "valid": True}, f, indent=2)
+        return {"valid": True, "message": "Success"}
+    
+    # 2. Remote Verification URL (Stripe/Vercel)
+    verification_url = os.environ.get("LICENSE_VERIFICATION_URL")
+    if verification_url:
+        try:
+            import urllib.request
+            req_url = f"{verification_url}?key={key}"
+            req = urllib.request.Request(req_url, method="GET")
+            with urllib.request.urlopen(req, timeout=5) as response:
+                res_data = json.loads(response.read().decode())
+                if res_data.get("valid"):
+                    with open("static/license.json", "w", encoding="utf-8") as f:
+                        json.dump({"key": key, "valid": True}, f, indent=2)
+                    return {"valid": True, "message": "Success"}
+                else:
+                    return {"valid": False, "message": res_data.get("message", "Invalid key.")}
+        except Exception as e:
+            return {"valid": False, "message": f"Verification server error: {str(e)}"}
+            
+    return {"valid": False, "message": "Invalid license key. Use 'ASHTA-FREE-TRIAL' for testing."}
+
+
 if __name__ == "__main__":
     import uvicorn
-    print("Launching Agentic AI Video Editor server at http://localhost:8000")
-    uvicorn.run(app, host="0.0.0.0", port=8000)
-
-
-
-if __name__ == "__main__":
-    import uvicorn
-    # Start the server on localhost:8000
-    print("Launching Agentic AI Video Editor server at http://localhost:8000")
+    print("Launching Ashtavadhani server at http://localhost:8000")
     uvicorn.run(app, host="0.0.0.0", port=8000)

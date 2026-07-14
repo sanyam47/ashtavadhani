@@ -935,6 +935,25 @@
         </div>
     </div>
 
+    <!-- License Activation Overlay -->
+    <div id="license-overlay" class="hidden" style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(7, 9, 13, 0.95); backdrop-filter: blur(20px); z-index: 9999; display: flex; justify-content: center; align-items: center;">
+        <div style="background: rgba(20, 24, 33, 0.85); border: 1px solid rgba(139, 92, 246, 0.3); border-radius: 16px; padding: 2.5rem; width: 100%; max-width: 450px; text-align: center; box-shadow: 0 10px 40px rgba(139, 92, 246, 0.2); font-family: 'Outfit', sans-serif;">
+            <img src="/static/logo.png" alt="Ashtavadhani Logo" style="width: 80px; height: 80px; border-radius: 12px; margin-bottom: 1.5rem; box-shadow: 0 0 20px rgba(139, 92, 246, 0.4);">
+            <h2 style="font-size: 1.75rem; font-weight: 800; letter-spacing: 0.5px; margin-bottom: 0.5rem; color: #fff;">Activate Ashtavadhani</h2>
+            <p style="font-size: 0.88rem; color: rgba(255,255,255,0.6); margin-bottom: 2rem; font-family: 'Inter', sans-serif; line-height: 1.5;">Please enter your license key to unlock the multi-agent editing suite.</p>
+            <div style="text-align: left; margin-bottom: 1.5rem; display: flex; flex-direction: column; gap: 6px;">
+                <label style="font-size: 0.72rem; font-weight: 600; text-transform: uppercase; color: rgba(255,255,255,0.4); letter-spacing: 0.05em;">License Key</label>
+                <input type="text" id="input-license-key" placeholder="XXXX-XXXX-XXXX-XXXX" style="width: 100%; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12); border-radius: 8px; padding: 12px; color: #fff; font-size: 0.95rem; font-family: monospace; outline: none; transition: border-color 0.3s; box-sizing: border-box;">
+            </div>
+            <button id="btn-activate-license" style="width: 100%; background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%); color: #fff; border: none; border-radius: 8px; padding: 12px; font-weight: 600; font-size: 0.95rem; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; transition: filter 0.3s; box-shadow: 0 4px 15px rgba(139,92,246,0.3); font-family: 'Inter', sans-serif;">
+                <i data-lucide="key" style="width: 16px; height: 16px;"></i> Verify & Unlock
+            </button>
+            <div style="margin-top: 1.5rem; font-size: 0.75rem; color: rgba(255,255,255,0.4); font-family: 'Inter', sans-serif;">
+                Don't have a key? <a href="https://github.com/sanyam47/ashtavadhani" target="_blank" style="color: #a78bfa; text-decoration: none; font-weight: 600;">Get license key</a>
+            </div>
+        </div>
+    </div>
+
     <script src="/static/app.js?v=1.3"></script>
     <script>
         // Init Lucide icons
