@@ -47,8 +47,8 @@ jobs:
       # Upload files directly to the GitHub Release page
       - name: Upload Binaries to Release
         uses: softprops/action-gh-release@v2
-        if: github.event_name == 'release'
         with:
+          tag_name: ${{ github.event.release.tag_name || 'v1.0.0' }}
           files: |
             dist/Ashtavadhani.exe
             dist/Ashtavadhani-linux
