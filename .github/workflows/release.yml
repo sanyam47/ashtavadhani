@@ -36,13 +36,13 @@ jobs:
       - name: Build Windows Executable
         if: matrix.os == 'windows-latest'
         run: |
-          python -m PyInstaller --onefile --windowed --name "Ashtavadhani" --add-data "static;static" --add-data "index.html;." --collect-submodules moviepy --copy-metadata imageio --copy-metadata moviepy launcher.py
+          python -m PyInstaller --onefile --windowed --name "Ashtavadhani" --add-data "static;static" --add-data "index.html;." --collect-all moviepy --collect-all imageio launcher.py
 
       # Build command for Linux (uses ':' as paths separator)
       - name: Build Linux Binary
         if: matrix.os == 'ubuntu-latest'
         run: |
-          python -m PyInstaller --onefile --name "Ashtavadhani-linux" --add-data "static:static" --add-data "index.html:." --collect-submodules moviepy --copy-metadata imageio --copy-metadata moviepy launcher.py
+          python -m PyInstaller --onefile --name "Ashtavadhani-linux" --add-data "static:static" --add-data "index.html:." --collect-all moviepy --collect-all imageio launcher.py
 
       # Upload files directly to the GitHub Release page
       - name: Upload Binaries to Release
