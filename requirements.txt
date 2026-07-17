@@ -1,6 +1,6 @@
 fastapi==0.111.0
 uvicorn==0.30.1
-moviepy==2.0.0.dev2
+moviepy==2.1.2
 numpy==1.26.4
 google-generativeai==0.5.4
 python-dotenv==1.0.1
