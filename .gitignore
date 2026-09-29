@@ -1,16 +1,28 @@
-# Environments
+# Environments & Secrets
 .env
-.venv
+.env.*
+!.env.example
+*.key
+*.pem
+*.ini
+!client.ini.example
+static/license.json
+
+# Virtual Environments
+.venv/
 env/
 venv/
 ENV/
 
-# Python Cache
+# Python Cache & Bytecode
 __pycache__/
 *.py[cod]
 *$py.class
+*.so
+*.egg
+*.egg-info/
 
-# Temporary Editor/Project Files
+# Temporary Editor/Project Video & Audio Outputs
 static/uploads/*
 !static/uploads/.gitkeep
 static/edited_output.mp4
@@ -26,14 +38,48 @@ static/subtitles.vtt
 static/text_overlays.json
 static/gemini_usage.json
 static/user_profile.json
+static/template_blueprint.json
+static/template_supervisor_state.json
+static/test_*.json
+static/*_bp.json
 
-# Audio downloads (app will download them on startup if missing)
+# Audio downloads (auto-downloaded if missing)
 static/music/*
 !static/music/.gitkeep
 static/sfx/*
 !static/sfx/.gitkeep
 
-# IDEs
+# Large Binary Caches, Weights & Model Checkpoints
+*.pkl
+*.pickle
+*.pth
+*.pt
+*.onnx
+*.bin
+static/cache_*.pkl
+
+# Media dumps, temp video renders & scratch
+*.mp4
+*.mov
+*.avi
+*.mkv
+*.webm
+!static/assets/*.mp4
+scratch/
+scratch_*
+ref_beat_*.png
+ref_frame_*.png
+
+# Transient Debug Frame Dumps in static
+static/temp_frames/
+static/comparisons/
+static/typography_masks/
+static/*.jpg
+static/*.png
+!static/logo.png
+!static/assets/**
+
+# IDEs & OS Files
 .vscode/
 .idea/
 *.suo
@@ -41,8 +87,10 @@ static/sfx/*
 *.njsproj
 *.sln
 *.sw?
+.DS_Store
+Thumbs.db
 
-# PyInstaller
+# PyInstaller & Build artifacts
 *.spec
 build/
 dist/

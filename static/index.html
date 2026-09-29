@@ -61,6 +61,9 @@
                         <button class="tab-btn active" data-tab="videos" id="tab-btn-videos">
                             <i data-lucide="video"></i> Videos
                         </button>
+                        <button class="tab-btn" data-tab="template" id="tab-btn-template">
+                            <i data-lucide="layout"></i> Template
+                        </button>
                         <button class="tab-btn" data-tab="music" id="tab-btn-music">
                             <i data-lucide="music"></i> Music
                         </button>
@@ -152,6 +155,236 @@
                                 <span>Analyze and Edit</span>
                             </button>
                         </form>
+                    </div>
+
+                    <!-- TAB: Template Maker -->
+                    <div class="tab-content" id="tab-template">
+                        <!-- Local AI Engine Status Card -->
+                        <div class="local-ai-card" id="local-ai-status-card" style="margin-bottom: 12px; padding: 10px 12px; background: rgba(34, 197, 94, 0.08); border: 1px solid rgba(34, 197, 94, 0.25); border-radius: 8px;">
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <div style="display: flex; align-items: center; gap: 6px;">
+                                    <span class="status-dot green" id="local-ai-dot" style="width: 8px; height: 8px; border-radius: 50%; background: #22c55e; display: inline-block;"></span>
+                                    <span style="font-size: 0.76rem; font-weight: 600; color: #fff;" id="local-ai-title">Local AI Vision Engine</span>
+                                </div>
+                                <span class="badge-mini" id="local-ai-badge" style="font-size: 0.65rem; padding: 2px 6px; border-radius: 10px; background: rgba(34, 197, 94, 0.2); color: #4ade80;">100% On-Device</span>
+                            </div>
+                            <p style="margin: 4px 0 0; font-size: 0.68rem; color: rgba(255,255,255,0.6);" id="local-ai-desc">Running locally on your PC GPU with zero API costs.</p>
+                            
+                            <!-- In-App Download Progress (Shown when downloading) -->
+                            <div class="model-download-bar hidden" id="local-ai-download-box" style="margin-top: 8px;">
+                                <div style="display: flex; justify-content: space-between; font-size: 0.68rem; color: rgba(255,255,255,0.7); margin-bottom: 3px;">
+                                    <span id="local-ai-download-msg">Downloading Vision Model...</span>
+                                    <span id="local-ai-download-pct">0%</span>
+                                </div>
+                                <div style="width: 100%; height: 5px; background: rgba(255,255,255,0.1); border-radius: 3px; overflow: hidden;">
+                                    <div id="local-ai-progress-fill" style="width: 0%; height: 100%; background: #a78bfa; transition: width 0.3s ease;"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Extract Template from Edit Video</label>
+                            <div class="dropzone compact" id="dropzone-template-ref">
+                                <input type="file" id="input-template-ref" accept="video/*" class="file-input">
+                                <i data-lucide="layout" class="dropzone-icon"></i>
+                                <p class="dropzone-title">Drop edit video to build template</p>
+                                <p class="dropzone-sub">Extracts shots, timing &amp; color filter</p>
+                                <div class="file-list" id="list-template-ref"></div>
+                            </div>
+                            <button type="button" class="btn btn-secondary btn-block" id="btn-extract-template" style="margin-top: 8px;">
+                                <i data-lucide="sparkles"></i> Extract Template Blueprint
+                            </button>
+                        </div>
+
+                        <!-- Template Blueprint Card (Visible after extraction) -->
+                        <div class="template-card hidden" id="template-blueprint-card" style="margin-top: 12px; padding: 12px; background: rgba(139,92,246,0.1); border: 1px solid rgba(139,92,246,0.3); border-radius: 8px;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                                <span style="font-weight: 600; font-size: 0.85rem; color: #a78bfa;" id="template-card-name">Template Blueprint</span>
+                                <span class="template-badge" id="template-filter-tag" style="background: rgba(6,182,212,0.2); color: #22d3ee; padding: 2px 8px; border-radius: 12px; font-size: 0.68rem;">Filter: Teal &amp; Orange</span>
+                            </div>
+                            <p style="font-size: 0.75rem; color: rgba(255,255,255,0.7); margin-bottom: 4px;" id="template-card-info">Extracted 4 slots • Duration 6.5s</p>
+                            <div id="template-card-typography" style="font-size: 0.70rem; color: #f472b6; display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                                <span>🔤 Font: <strong id="tb-font-name">Century Gothic Bold</strong></span>
+                                <span>• Layer: <strong id="tb-layer-mode">Foreground</strong></span>
+                                <span>• Transition: <strong id="tb-transition-mode">Instant Cut</strong></span>
+                            </div>
+                        </div>
+
+                        <!-- 3D Depth Layering Controls Card -->
+                        <div class="template-depth-card hidden" id="template-depth-settings-card" style="margin-top: 12px; padding: 12px; background: rgba(236,72,153,0.06); border: 1px solid rgba(236,72,153,0.25); border-radius: 8px;">
+                            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                                <span style="font-size:0.78rem; font-weight:700; color:#f472b6;">✨ 3D Depth &amp; Layering Style</span>
+                                <span style="font-size:0.65rem; background:rgba(236,72,153,0.2); color:#f472b6; padding:2px 6px; border-radius:10px;">Reference Aesthetic</span>
+                            </div>
+
+                            <!-- Layer Depth Mode -->
+                            <div style="margin-bottom:8px;">
+                                <label style="font-size:0.68rem; color:rgba(255,255,255,0.7); display:block; margin-bottom:4px;">Layer Depth Mode:</label>
+                                <div style="display:flex; gap:6px;">
+                                    <button type="button" class="btn-slot-mode active" id="btn-depth-foreground" onclick="setLayerDepthMode('foreground')" style="flex:1; text-align:center;">
+                                        🔤 Foreground Overlay (Ref Edit Style)
+                                    </button>
+                                    <button type="button" class="btn-slot-mode" id="btn-depth-behind" onclick="setLayerDepthMode('behind_subject')" style="flex:1; text-align:center;">
+                                        👤 Behind Subject (3D Depth)
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Text Contrast / Color Mode -->
+                            <div style="margin-bottom:8px;">
+                                <label style="font-size:0.68rem; color:rgba(255,255,255,0.7); display:block; margin-bottom:4px;">Text Contrast / Visibility:</label>
+                                <div style="display:flex; gap:6px;">
+                                    <button type="button" class="btn-slot-mode active" id="btn-color-white" onclick="setTextColorMode('white')" style="flex:1; text-align:center;">
+                                        ⚪ Crisp White (High Vis)
+                                    </button>
+                                    <button type="button" class="btn-slot-mode" id="btn-color-dark" onclick="setTextColorMode('dark')" style="flex:1; text-align:center;">
+                                        ⚫ Dark Slate (Ref Tone)
+                                    </button>
+                                    <button type="button" class="btn-slot-mode" id="btn-color-neon" onclick="setTextColorMode('neon')" style="flex:1; text-align:center;">
+                                        🟣 Neon Glow
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Smart Subject Positioning & Anatomical Alignment -->
+                            <div style="margin-bottom:10px; padding:10px; background:rgba(34,211,238,0.06); border:1px solid rgba(34,211,238,0.25); border-radius:8px;">
+                                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                                    <span style="font-size:0.75rem; font-weight:700; color:#22d3ee;">🎯 Smart Subject Positioning</span>
+                                    <span style="font-size:0.62rem; background:rgba(34,211,238,0.2); color:#22d3ee; padding:1px 6px; border-radius:10px; font-weight:600;">AI Landmark Lock</span>
+                                </div>
+
+                                <!-- Anchor Mode Buttons -->
+                                <div style="margin-bottom:8px;">
+                                     <label style="font-size:0.68rem; color:rgba(255,255,255,0.7); display:block; margin-bottom:4px;">Anatomical Anchor Point:</label>
+                                     <div style="display:flex; gap:4px; flex-wrap:wrap;">
+                                         <button type="button" class="btn-slot-mode active" id="btn-anchor-smart" onclick="setTemplateAnchorMode('smart')" style="flex:1; min-width:70px; text-align:center; font-size:0.65rem; padding:5px 2px;">
+                                             👁️ Eye/Head
+                                         </button>
+                                         <button type="button" class="btn-slot-mode" id="btn-anchor-full" onclick="setTemplateAnchorMode('full')" style="flex:1; min-width:85px; text-align:center; font-size:0.65rem; padding:5px 2px; border-color:rgba(34,211,238,0.5); color:#22d3ee;">
+                                             🔍 Full Photo
+                                         </button>
+                                         <button type="button" class="btn-slot-mode" id="btn-anchor-torso" onclick="setTemplateAnchorMode('torso')" style="flex:1; min-width:65px; text-align:center; font-size:0.65rem; padding:5px 2px;">
+                                             🧍 Torso
+                                         </button>
+                                         <button type="button" class="btn-slot-mode" id="btn-anchor-bottom" onclick="setTemplateAnchorMode('bottom')" style="flex:1; min-width:65px; text-align:center; font-size:0.65rem; padding:5px 2px;">
+                                             ⬇️ Bottom
+                                         </button>
+                                     </div>
+                                 </div>
+
+                                 <!-- Subject Scale Slider & Exact Dimension Inputs -->
+                                 <div style="margin-bottom:8px;">
+                                     <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.68rem; color:rgba(255,255,255,0.7); margin-bottom:3px;">
+                                         <span>Subject Scale:</span>
+                                         <div style="display:flex; align-items:center; gap:4px;">
+                                             <div style="display:flex; align-items:center; background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.15); border-radius:4px; padding:1px 4px;">
+                                                 <input type="number" id="input-subject-scale-num" min="30" max="150" step="1" value="100" style="width:38px; background:transparent; border:none; color:#22d3ee; font-size:0.72rem; font-weight:700; text-align:right; outline:none;" oninput="updateSubjectScale(this.value / 100.0)">
+                                                 <span style="font-size:0.65rem; color:#22d3ee; font-weight:700;">%</span>
+                                             </div>
+                                             <span id="label-subject-scale" style="color:rgba(255,255,255,0.4); font-size:0.65rem;">(1.00x)</span>
+                                         </div>
+                                     </div>
+                                     <input type="range" min="0.30" max="1.50" step="0.01" value="1.00" id="slider-subject-scale" style="width:100%; accent-color:#22d3ee;" oninput="updateSubjectScale(this.value)">
+                                     <div style="display:flex; gap:3px; margin-top:4px; flex-wrap:wrap;">
+                                         <button type="button" class="btn-slot-mode" onclick="updateSubjectScale(0.60)" style="font-size:0.62rem; padding:2px 4px;">0.60x Full Body</button>
+                                         <button type="button" class="btn-slot-mode" onclick="updateSubjectScale(0.75)" style="font-size:0.62rem; padding:2px 4px;">0.75x 3/4 Shot</button>
+                                         <button type="button" class="btn-slot-mode" onclick="updateSubjectScale(0.85)" style="font-size:0.62rem; padding:2px 4px;">0.85x Medium</button>
+                                         <button type="button" class="btn-slot-mode" onclick="updateSubjectScale(1.00)" style="font-size:0.62rem; padding:2px 4px;">1.00x Close-up</button>
+                                         <button type="button" class="btn-slot-mode" id="btn-toggle-transform-box" onclick="togglePlayerTransformBox()" style="font-size:0.62rem; padding:2px 6px; border-color:rgba(139,92,246,0.4); color:#c4b5fd;">📐 On-Screen Box</button>
+                                     </div>
+                                 </div>
+
+                                <!-- Horizontal Nudge (X Offset) -->
+                                <div style="margin-bottom:8px;">
+                                    <div style="display:flex; justify-content:space-between; font-size:0.68rem; color:rgba(255,255,255,0.7); margin-bottom:3px;">
+                                        <span>Horizontal Nudge (X):</span>
+                                        <span id="label-pos-x" style="color:#22d3ee; font-weight:700;">0px (Auto Centered)</span>
+                                    </div>
+                                    <div style="display:flex; align-items:center; gap:6px;">
+                                        <input type="range" min="-150" max="150" step="1" value="0" id="slider-pos-x" style="flex:1; accent-color:#22d3ee;" oninput="updatePosXOffset(this.value)">
+                                        <button type="button" class="btn-slot-mode" onclick="updatePosXOffset(0)" style="font-size:0.62rem; padding:2px 6px;">Reset</button>
+                                    </div>
+                                </div>
+
+                                <!-- Vertical Nudge (Y Offset) -->
+                                <div>
+                                    <div style="display:flex; justify-content:space-between; font-size:0.68rem; color:rgba(255,255,255,0.7); margin-bottom:3px;">
+                                        <span>Vertical Nudge (Y):</span>
+                                        <span id="label-pos-y" style="color:#22d3ee; font-weight:700;">0px (Auto Eye-Locked)</span>
+                                    </div>
+                                    <div style="display:flex; align-items:center; gap:6px;">
+                                        <input type="range" min="-150" max="150" step="1" value="0" id="slider-pos-y" style="flex:1; accent-color:#22d3ee;" oninput="updatePosYOffset(this.value)">
+                                        <button type="button" class="btn-slot-mode" onclick="updatePosYOffset(0)" style="font-size:0.62rem; padding:2px 6px;">Reset</button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Backdrop Style -->
+                            <div style="margin-bottom:8px;">
+                                <label style="font-size:0.68rem; color:rgba(255,255,255,0.7); display:block; margin-bottom:4px;">Backdrop Aesthetic:</label>
+                                <div style="display:flex; gap:6px;">
+                                    <button type="button" class="btn-slot-mode active" id="btn-bg-studio" onclick="setBackdropStyle('studio_gray')" style="flex:1; text-align:center;">
+                                        🏢 Studio Gray (Ref Edit)
+                                    </button>
+                                    <button type="button" class="btn-slot-mode" id="btn-bg-photo" onclick="setBackdropStyle('photo_bg')" style="flex:1; text-align:center;">
+                                        📷 Keep Photo BG
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Vertical Position Slider & Presets -->
+                            <div>
+                                <div style="display:flex; justify-content:space-between; font-size:0.68rem; color:rgba(255,255,255,0.7); margin-bottom:3px;">
+                                    <span>Vertical Placement (Center):</span>
+                                    <span id="label-depth-pos" style="color:#22d3ee; font-weight:700;">50.0% (Chest / Center - Ref Style)</span>
+                                </div>
+                                <input type="range" min="20" max="80" step="0.5" value="50.0" id="slider-depth-pos" style="width:100%; accent-color:#f472b6;" oninput="updateDepthVerticalPos(this.value)">
+                                <div style="display:flex; gap:4px; margin-top:4px;">
+                                    <button type="button" class="btn-slot-mode" onclick="updateDepthVerticalPos(50.0); document.getElementById('slider-depth-pos').value = 50.0;" style="font-size:0.62rem; padding:2px 4px;">
+                                        Center (50%)
+                                    </button>
+                                    <button type="button" class="btn-slot-mode" onclick="updateDepthVerticalPos(44.0); document.getElementById('slider-depth-pos').value = 44.0;" style="font-size:0.62rem; padding:2px 4px;">
+                                        Upper Chest (44%)
+                                    </button>
+                                    <button type="button" class="btn-slot-mode" onclick="updateDepthVerticalPos(38.0); document.getElementById('slider-depth-pos').value = 38.0;" style="font-size:0.62rem; padding:2px 4px;">
+                                        Neck (38%)
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Placeholder Slots Container -->
+                        <div class="form-group" style="margin-top: 14px;">
+                            <label>Template Placeholder Slots</label>
+                            <div id="template-slots-container" style="display: flex; flex-direction: column; gap: 8px;">
+                                <div class="asset-empty-state" id="template-slots-empty">
+                                    <i data-lucide="layers"></i>
+                                    <span>Upload an edit video above to extract template slots</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <button type="button" class="btn btn-primary btn-block hidden" id="btn-render-template" style="margin-top: 14px;">
+                            <i data-lucide="play-circle"></i> Render Template Edit
+                        </button>
+
+                        <!-- Template Render Real-Time Progress Card -->
+                        <div class="template-progress-card hidden" id="template-render-progress-card" style="margin-top: 12px; padding: 12px; background: rgba(139, 92, 246, 0.08); border: 1px solid rgba(139, 92, 246, 0.25); border-radius: 8px;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                                <span style="font-size: 0.74rem; font-weight: 600; color: #fff; display: flex; align-items: center; gap: 6px;">
+                                    <i data-lucide="loader" class="spinner-icon" style="width: 14px; height: 14px; color: #a78bfa;"></i>
+                                    <span id="tpl-progress-title">Synthesizing 3D Edit...</span>
+                                </span>
+                                <span id="tpl-progress-percentage" style="font-size: 0.86rem; font-weight: 700; color: #22d3ee;">0%</span>
+                            </div>
+                            <div style="width: 100%; height: 6px; background: rgba(255,255,255,0.1); border-radius: 3px; overflow: hidden;">
+                                <div id="tpl-progress-bar-fill" style="width: 0%; height: 100%; background: linear-gradient(90deg, #8b5cf6, #22d3ee); transition: width 0.25s ease;"></div>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; font-size: 0.65rem; color: rgba(255,255,255,0.6); margin-top: 6px;">
+                                <span id="tpl-progress-agent-badge" style="color: #c4b5fd; font-weight: 500;">Initializing pipeline...</span>
+                                <span id="tpl-progress-frame-counter" style="color: #94a3b8;">Frame 0 of --</span>
+                            </div>
+                        </div>
                     </div>
 
                     <!-- TAB: Music -->
@@ -427,10 +660,11 @@
                 <div class="panel-header">
                     <i data-lucide="shield-alert"></i>
                     <h2>Agent Operations Center</h2>
+                    <span class="status-badge" id="agent-pipeline-badge" style="font-size: 0.65rem; padding: 2px 8px; border-radius: 10px; background: rgba(139, 92, 246, 0.15); color: #a78bfa; border: 1px solid rgba(139, 92, 246, 0.3); margin-left: auto;">Standard Multi-Agent</span>
                 </div>
                 <div class="panel-body flex-col">
-                    <!-- Agent Network Status Grid -->
-                    <div class="agent-grid">
+                    <!-- Standard Mode Multi-Agent Status Grid -->
+                    <div class="agent-grid" id="agent-grid-standard">
                         <!-- 1. User Interaction Agent -->
                         <div class="agent-card idle" id="agent-user">
                             <div class="agent-indicator">
@@ -532,6 +766,91 @@
                         </div>
                     </div>
 
+                    <!-- Template Mode Neural Models Grid (Active in Template Mode) -->
+                    <div class="agent-grid hidden" id="agent-grid-template">
+                        <!-- 1. Snapdragon NPU Acceleration Engine -->
+                        <div class="agent-card idle" id="agent-tpl-npu">
+                            <div class="agent-indicator">
+                                <span class="agent-dot"></span>
+                                <div class="pulse-ring"></div>
+                            </div>
+                            <h3>Snapdragon NPU</h3>
+                            <p>X Elite / ONNX Fallback</p>
+                        </div>
+                        <!-- 2. Blueprint Analyzer -->
+                        <div class="agent-card idle" id="agent-tpl-blueprint">
+                            <div class="agent-indicator">
+                                <span class="agent-dot"></span>
+                                <div class="pulse-ring"></div>
+                            </div>
+                            <h3>Blueprint Analyzer</h3>
+                            <p>Vision & Beat Extractor</p>
+                        </div>
+                        <!-- 3. BiRefNet Portrait Matting -->
+                        <div class="agent-card idle" id="agent-tpl-matting">
+                            <div class="agent-indicator">
+                                <span class="agent-dot"></span>
+                                <div class="pulse-ring"></div>
+                            </div>
+                            <h3>BiRefNet Matting</h3>
+                            <p>High-Res Cutout Engine</p>
+                        </div>
+                        <!-- 4. ISNet Keyframe Masking -->
+                        <div class="agent-card idle" id="agent-tpl-masking">
+                            <div class="agent-indicator">
+                                <span class="agent-dot"></span>
+                                <div class="pulse-ring"></div>
+                            </div>
+                            <h3>ISNet Masking</h3>
+                            <p>Reference Subject Tracker</p>
+                        </div>
+                        <!-- 5. Agentic Model Dispatcher -->
+                        <div class="agent-card idle" id="agent-tpl-dispatcher">
+                            <div class="agent-indicator">
+                                <span class="agent-dot"></span>
+                                <div class="pulse-ring"></div>
+                            </div>
+                            <h3>Model Dispatcher</h3>
+                            <p>Visual Entropy Router</p>
+                        </div>
+                        <!-- 6. Neural Inpainting (LaMa) -->
+                        <div class="agent-card idle" id="agent-tpl-inpainting">
+                            <div class="agent-indicator">
+                                <span class="agent-dot"></span>
+                                <div class="pulse-ring"></div>
+                            </div>
+                            <h3>LaMa Inpainting</h3>
+                            <p>Fast Fourier Convolutions</p>
+                        </div>
+                        <!-- 7. Smart Anatomical Aligner -->
+                        <div class="agent-card idle" id="agent-tpl-aligner">
+                            <div class="agent-indicator">
+                                <span class="agent-dot"></span>
+                                <div class="pulse-ring"></div>
+                            </div>
+                            <h3>Anatomical Aligner</h3>
+                            <p>Landmark & Scale Match</p>
+                        </div>
+                        <!-- 8. Spatial 3D Compositor -->
+                        <div class="agent-card idle" id="agent-tpl-compositor">
+                            <div class="agent-indicator">
+                                <span class="agent-dot"></span>
+                                <div class="pulse-ring"></div>
+                            </div>
+                            <h3>3D Depth Compositor</h3>
+                            <p>Screen-Light Kinetic Typo</p>
+                        </div>
+                        <!-- 9. Audio & Muxing Engine -->
+                        <div class="agent-card idle" id="agent-tpl-audio">
+                            <div class="agent-indicator">
+                                <span class="agent-dot"></span>
+                                <div class="pulse-ring"></div>
+                            </div>
+                            <h3>Audio Sync & Mux</h3>
+                            <p>Lossless AAC Stitcher</p>
+                        </div>
+                    </div>
+
                     <!-- Live Log Terminal Console -->
                     <div class="console-box">
                         <div class="console-header">
@@ -619,8 +938,31 @@
                     </div>
 
                     <!-- Video Preview Player Frame -->
-                    <div class="preview-player-frame">
-                        <div class="player-container">
+                    <div class="preview-player-frame" id="preview-player-frame">
+                        <!-- Top Toolbar: Resolution, Aspect Ratio Mode, and Full-Frame Toggle -->
+                        <div class="player-top-bar">
+                            <div class="player-badge-group">
+                                <span class="player-meta-badge" id="player-aspect-badge" title="Active Aspect Ratio">
+                                    <i data-lucide="tv" style="width:11px; height:11px;"></i>
+                                    <span id="player-aspect-text">Auto</span>
+                                </span>
+                                <span class="player-meta-badge muted" id="player-res-badge" title="Source Resolution">
+                                    <span id="player-res-text">-- × --</span>
+                                </span>
+                            </div>
+                            <div class="player-view-modes">
+                                <button class="btn-player-mode active" id="btn-aspect-auto" title="Match Video Aspect Ratio" onclick="setPlayerAspect('auto')">Auto</button>
+                                <button class="btn-player-mode" id="btn-aspect-9-16" title="9:16 Vertical Reel / Shorts" onclick="setPlayerAspect('9:16')">9:16</button>
+                                <button class="btn-player-mode" id="btn-aspect-16-9" title="16:9 Landscape" onclick="setPlayerAspect('16:9')">16:9</button>
+                                <button class="btn-player-mode" id="btn-aspect-1-1" title="1:1 Square" onclick="setPlayerAspect('1:1')">1:1</button>
+                                <button class="btn-player-mode" id="btn-player-fit" title="Toggle Full Video (Fit) vs Zoom (Fill)" onclick="togglePlayerFit()">Fit: Full</button>
+                                <button class="btn-player-mode" id="btn-player-fullscreen" title="Fullscreen View" onclick="togglePlayerFullscreen()">
+                                    <i data-lucide="maximize" style="width:12px; height:12px;"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="player-container" id="player-container">
                             <video id="main-video-player" playsinline>
                                 <source src="" type="video/mp4">
                                 <track default kind="subtitles" srclang="en" src="" id="player-track">
@@ -631,14 +973,39 @@
                                 <span class="caption-word" id="caption-text"></span>
                             </div>
 
+                            <!-- Interactive Subject Transform Box Overlay -->
+                            <div id="player-transform-box" class="player-transform-box hidden">
+                                <div class="transform-edge edge-t"></div>
+                                <div class="transform-edge edge-b"></div>
+                                <div class="transform-edge edge-l"></div>
+                                <div class="transform-edge edge-r"></div>
+                                <div class="transform-handle corner-tl" data-corner="tl"></div>
+                                <div class="transform-handle corner-tr" data-corner="tr"></div>
+                                <div class="transform-handle corner-bl" data-corner="bl"></div>
+                                <div class="transform-handle corner-br" data-corner="br"></div>
+                                <div class="transform-badge" id="transform-badge">Photo Size: 100%</div>
+                            </div>
+
                             <!-- Mock Cinematic Grading Screen Overlays -->
                             <div class="player-overlay" id="player-grade-overlay"></div>
                             
                             <!-- AI Generating Progress Overlay -->
                             <div class="player-progress-overlay hidden" id="player-rendering-spinner">
                                 <div class="spinner-spinner"></div>
-                                <h3 id="render-status-heading">Generating AI Filler Clip...</h3>
-                                <p>Sourcing cinematic elements</p>
+                                <h3 id="render-status-heading">Synthesizing Video...</h3>
+                                <p id="render-status-subtext">Sourcing cinematic elements</p>
+
+                                <!-- Render Progress Bar & Percentage -->
+                                <div class="render-progress-box" style="width: 260px; margin-top: 14px; text-align: center; background: rgba(0, 0, 0, 0.45); padding: 10px 14px; border-radius: 8px; border: 1px solid rgba(255, 255, 255, 0.1);">
+                                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; font-size: 0.74rem;">
+                                        <span id="render-progress-phase" style="color: rgba(255,255,255,0.8); font-weight: 500;">Rendering Frames</span>
+                                        <span id="render-progress-percent" style="color: #22d3ee; font-weight: 700; font-size: 0.95rem;">0%</span>
+                                    </div>
+                                    <div style="width: 100%; height: 8px; background: rgba(255,255,255,0.12); border-radius: 4px; overflow: hidden; border: 1px solid rgba(255,255,255,0.08);">
+                                        <div id="render-progress-fill" style="width: 0%; height: 100%; background: linear-gradient(90deg, #8b5cf6, #06b6d4); transition: width 0.25s ease;"></div>
+                                    </div>
+                                    <p id="render-progress-frame-detail" style="font-size: 0.65rem; color: rgba(255,255,255,0.6); margin-top: 6px; margin-bottom: 0;">Frame 0 of --</p>
+                                </div>
                             </div>
                             
                             <!-- Playback Control Center overlay -->
@@ -651,7 +1018,7 @@
 
                         <!-- Video Controls Bar -->
                         <div class="player-controls-bar">
-                            <button class="btn-ctrl" id="btn-play-pause">
+                            <button class="btn-ctrl" id="btn-play-pause" title="Play/Pause">
                                 <i data-lucide="play" id="play-icon"></i>
                             </button>
                             <span class="player-time" id="player-time-display">00:00 / 00:00</span>
@@ -661,25 +1028,90 @@
                             <button class="btn-ctrl" id="btn-volume" title="Mute/Unmute">
                                 <i data-lucide="volume-2" id="volume-icon"></i>
                             </button>
+                            <button class="btn-ctrl" id="btn-ctrl-fs" title="Fullscreen" onclick="togglePlayerFullscreen()">
+                                <i data-lucide="maximize-2" style="width: 14px; height: 14px;"></i>
+                            </button>
                         </div>
                     </div>
 
-                    <!-- Reprompt Panel - appears after video renders -->
+                    <!-- Reprompt / AI Supervisor Refinement Panel - appears after video renders -->
                     <div class="reprompt-panel hidden" id="reprompt-panel">
                         <div class="reprompt-header">
                             <i data-lucide="sparkles" class="reprompt-icon"></i>
                             <div>
-                                <h4>Video Ready! Want to refine it?</h4>
-                                <p>Describe changes — agents will re-edit with your new instructions.</p>
+                                <h4>AI Supervisor Refinement</h4>
+                                <p>Describe any adjustments (e.g., position, lighting, shadows, words, or size) — the Supervisor will re-render automatically.</p>
                             </div>
                         </div>
-                        <textarea id="reprompt-text" class="reprompt-textarea" placeholder="e.g., Make the music louder, add more captions, speed up the cuts in the middle..."></textarea>
+                        <!-- Quick Suggestion Pills -->
+                        <div class="supervisor-pills" style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom:10px;">
+                            <button type="button" class="btn-supervisor-pill" data-prompt="put the text in front of my photo" style="background:rgba(139,92,246,0.2); border:1px solid rgba(139,92,246,0.4); border-radius:20px; padding:4px 10px; font-size:0.75rem; color:#e2e8f0; cursor:pointer;">🔤 Text in Front</button>
+                            <button type="button" class="btn-supervisor-pill" data-prompt="put the text behind my photo" style="background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.15); border-radius:20px; padding:4px 10px; font-size:0.75rem; color:#e2e8f0; cursor:pointer;">👥 Text Behind Me</button>
+                            <button type="button" class="btn-supervisor-pill" data-prompt="words are not correct in some frames, fix the text" style="background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.15); border-radius:20px; padding:4px 10px; font-size:0.75rem; color:#e2e8f0; cursor:pointer;">✨ Fix broken words</button>
+                            <button type="button" class="btn-supervisor-pill" data-prompt="put my photo down a bit" style="background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.15); border-radius:20px; padding:4px 10px; font-size:0.75rem; color:#e2e8f0; cursor:pointer;">⬇️ Put photo down</button>
+                            <button type="button" class="btn-supervisor-pill" data-prompt="my photo is too black, brighten it and lift dark shadows" style="background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.15); border-radius:20px; padding:4px 10px; font-size:0.75rem; color:#e2e8f0; cursor:pointer;">☀️ Brighten photo</button>
+                            <button type="button" class="btn-supervisor-pill" data-prompt="make my photo slightly bigger" style="background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.15); border-radius:20px; padding:4px 10px; font-size:0.75rem; color:#e2e8f0; cursor:pointer;">🔍 Scale up</button>
+                            <button type="button" class="btn-supervisor-pill" data-prompt="soften my edges for a natural blend" style="background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.15); border-radius:20px; padding:4px 10px; font-size:0.75rem; color:#e2e8f0; cursor:pointer;">🪄 Soften edges</button>
+                        </div>
+                        <textarea id="reprompt-text" class="reprompt-textarea" placeholder="e.g., My photo is too black and words are not correct in some frames, also put it down a bit..."></textarea>
+                        <!-- Live supervisor feedback message -->
+                        <div id="supervisor-status-box" class="hidden" style="margin-top:8px; padding:8px 12px; background:rgba(139,92,246,0.15); border:1px solid rgba(139,92,246,0.3); border-radius:8px; font-size:0.76rem; color:#c4b5fd;"></div>
                         <div class="reprompt-actions">
                             <button class="btn btn-primary flex-1" id="btn-reprompt" type="button">
-                                <i data-lucide="refresh-cw"></i> Re-Edit with Changes
+                                <i data-lucide="sparkles"></i> Apply AI Refinement
                             </button>
                             <button class="btn btn-outline flex-1" id="btn-start-fresh" type="button">
                                 <i data-lucide="trash-2"></i> Start Fresh
+                            </button>
+                        </div>
+
+                        <!-- Frame-by-Frame Comparison Supervisor Tray -->
+                        <div class="supervisor-comparison-section" style="margin-top:14px; border-top:1px solid rgba(255,255,255,0.1); padding-top:12px;">
+                            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:8px;">
+                                <div style="display:flex; align-items:center; gap:6px;">
+                                    <i data-lucide="scan-eye" style="width:16px; height:16px; color:#a78bfa;"></i>
+                                    <span style="font-size:0.8rem; font-weight:600; color:#e2e8f0;">Frame-by-Frame Quality Audit</span>
+                                </div>
+                                <div style="display:flex; gap:6px;">
+                                    <button type="button" class="btn btn-sm btn-outline" id="btn-run-frame-audit" style="padding:4px 10px; font-size:0.72rem; display:flex; align-items:center; gap:4px; border-color:rgba(167,139,250,0.4); color:#c4b5fd;">
+                                        <i data-lucide="scan" style="width:12px; height:12px;"></i> Inspect Frames
+                                    </button>
+                                    <button type="button" class="btn btn-sm btn-primary" id="btn-auto-heal-discrepancies" style="padding:4px 10px; font-size:0.72rem; display:flex; align-items:center; gap:4px; background:linear-gradient(135deg, #8b5cf6, #ec4899); border:none; color:#fff;" title="Auto-diagnose discrepancies and re-render until passing">
+                                        <i data-lucide="sparkles" style="width:12px; height:12px;"></i> Auto-Heal
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <!-- Container for comparison cards & visual metrics -->
+                            <div id="supervisor-comparison-tray" class="hidden" style="margin-top:8px;">
+                                <div id="supervisor-comparison-summary" style="padding:10px; background:rgba(139,92,246,0.1); border:1px solid rgba(139,92,246,0.25); border-radius:8px; margin-bottom:10px;">
+                                    <!-- Overall score, verdict, metrics badges -->
+                                </div>
+                                <div id="supervisor-comparison-carousel" style="display:flex; flex-direction:column; gap:10px; max-height:460px; overflow-y:auto; padding-right:4px;">
+                                    <!-- Dynamic frame cards (Ref vs Output side-by-side) -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Template Result & Direct Download Card -->
+                    <div class="template-result-card hidden" id="template-result-card" style="margin-top:14px; padding:14px; background:linear-gradient(135deg, rgba(34,197,94,0.12), rgba(6,182,212,0.1)); border:1px solid rgba(34,197,94,0.3); border-radius:10px;">
+                        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:8px;">
+                            <div style="display:flex; align-items:center; gap:8px;">
+                                <span style="font-size:1.1rem;">🎉</span>
+                                <div>
+                                    <h4 style="margin:0; font-size:0.88rem; color:#fff; font-weight:700;">Template Edit Ready!</h4>
+                                    <p style="margin:2px 0 0; font-size:0.70rem; color:rgba(255,255,255,0.6);">Preview the video above, adjust timing laps, or download.</p>
+                                </div>
+                            </div>
+                            <span class="badge" style="background:rgba(34,197,94,0.25); color:#4ade80; font-size:0.65rem; padding:2px 8px; border-radius:12px;">Rendered</span>
+                        </div>
+                        <div style="display:flex; gap:8px; margin-top:10px;">
+                            <a id="btn-download-template-video" href="/static/edited_output.mp4" download="edited_template_output.mp4" class="btn btn-primary flex-1" style="text-decoration:none; display:flex; align-items:center; justify-content:center; gap:6px; background:#22c55e; border-color:#16a34a; font-weight:600; font-size:0.82rem;">
+                                <i data-lucide="download"></i> Download Video (MP4)
+                            </a>
+                            <button type="button" class="btn btn-outline flex-1" onclick="focusTemplateAdjustments()" style="display:flex; align-items:center; justify-content:center; gap:6px; font-size:0.82rem;">
+                                <i data-lucide="sliders"></i> Adjust Timings Again
                             </button>
                         </div>
                     </div>
@@ -931,6 +1363,46 @@
                 <button type="button" class="btn btn-accent btn-sm" id="btn-modal-add-more" style="display:flex; align-items:center; gap:4px; cursor:pointer;">
                     <i data-lucide="plus" style="width:14px; height:14px;"></i> Add More
                 </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Interactive Photo Crop & Resize Modal -->
+    <div id="photo-crop-modal" class="hidden" style="position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(7,9,13,0.88); backdrop-filter:blur(14px); z-index:9990; display:flex; justify-content:center; align-items:center;">
+        <div style="background:#131722; border:1px solid rgba(139,92,246,0.35); border-radius:14px; width:92%; max-width:760px; max-height:92vh; display:flex; flex-direction:column; overflow:hidden; box-shadow:0 12px 48px rgba(0,0,0,0.7); font-family:'Inter',sans-serif;">
+            <!-- Modal Header -->
+            <div style="padding:14px 18px; border-bottom:1px solid rgba(255,255,255,0.08); display:flex; justify-content:space-between; align-items:center; background:rgba(255,255,255,0.02);">
+                <div style="display:flex; align-items:center; gap:8px;">
+                    <i data-lucide="crop" style="color:#22d3ee; width:18px; height:18px;"></i>
+                    <h3 style="margin:0; font-size:1.0rem; font-weight:700; color:#fff;">Custom Photo Crop &amp; Framing</h3>
+                </div>
+                <button type="button" onclick="closePhotoCropModal()" style="background:none; border:none; color:rgba(255,255,255,0.5); font-size:1.2rem; cursor:pointer; padding:4px 8px; border-radius:6px; transition:color 0.2s;">✕</button>
+            </div>
+            <!-- Aspect Ratio Controls Toolbar -->
+            <div style="padding:10px 18px; background:rgba(255,255,255,0.03); border-bottom:1px solid rgba(255,255,255,0.06); display:flex; gap:6px; align-items:center; flex-wrap:wrap;">
+                <span style="font-size:0.70rem; color:rgba(255,255,255,0.5); text-transform:uppercase; letter-spacing:0.04em; margin-right:4px;">Aspect Ratio:</span>
+                <button type="button" class="btn-slot-mode active" id="btn-crop-ratio-free" onclick="setCropAspectRatio('free')" style="font-size:0.68rem; padding:4px 8px;">Freeform</button>
+                <button type="button" class="btn-slot-mode" id="btn-crop-ratio-916" onclick="setCropAspectRatio(9/16)" style="font-size:0.68rem; padding:4px 8px;">9:16 (Story/Reel)</button>
+                <button type="button" class="btn-slot-mode" id="btn-crop-ratio-11" onclick="setCropAspectRatio(1/1)" style="font-size:0.68rem; padding:4px 8px;">1:1 (Square)</button>
+                <button type="button" class="btn-slot-mode" id="btn-crop-ratio-45" onclick="setCropAspectRatio(4/5)" style="font-size:0.68rem; padding:4px 8px;">4:5 (Portrait)</button>
+                <button type="button" class="btn-slot-mode" id="btn-crop-ratio-orig" onclick="setCropAspectRatio('orig')" style="font-size:0.68rem; padding:4px 8px;">Original Photo</button>
+                <div style="margin-left:auto; font-size:0.72rem; color:#22d3ee; font-weight:600;" id="crop-dimensions-label">0 × 0 px</div>
+            </div>
+            <!-- Canvas Workspace -->
+            <div id="crop-canvas-wrapper" style="flex:1; position:relative; min-height:360px; max-height:55vh; background:#0a0c10; display:flex; justify-content:center; align-items:center; overflow:hidden; user-select:none; padding:12px;">
+                <canvas id="photo-crop-canvas" style="max-width:100%; max-height:100%; box-shadow:0 4px 20px rgba(0,0,0,0.5);"></canvas>
+            </div>
+            <!-- Modal Footer Actions -->
+            <div style="padding:12px 18px; border-top:1px solid rgba(255,255,255,0.08); display:flex; justify-content:space-between; align-items:center; background:rgba(20,24,33,0.95);">
+                <button type="button" onclick="resetCropToOriginal()" class="btn btn-outline" style="font-size:0.75rem; padding:6px 14px; border-color:rgba(255,255,255,0.2);">
+                    <i data-lucide="rotate-ccw" style="width:13px; height:13px;"></i> Reset Full Photo
+                </button>
+                <div style="display:flex; gap:8px;">
+                    <button type="button" onclick="closePhotoCropModal()" class="btn btn-outline" style="font-size:0.75rem; padding:6px 14px;">Cancel</button>
+                    <button type="button" onclick="applyPhotoCrop()" class="btn btn-primary" style="font-size:0.75rem; padding:6px 18px; background:linear-gradient(135deg, #22d3ee 0%, #0284c7 100%); border:none; color:#fff; font-weight:700;">
+                        <i data-lucide="check" style="width:14px; height:14px;"></i> Apply Crop &amp; Use
+                    </button>
+                </div>
             </div>
         </div>
     </div>

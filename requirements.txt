@@ -8,3 +8,13 @@ python-multipart==0.0.9
 faster-whisper==1.0.2
 SpeechRecognition==3.10.4
 Pillow==10.3.0
+opencv-python>=4.8.0
+rembg>=2.0.50
+onnxruntime>=1.17.0
+scipy>=1.11.0
+requests>=2.31.0
+
+# Optional / Specialized AI Acceleration:
+# qai-hub>=0.55.0               # Qualcomm AI Hub Hexagon NPU compile & profile
+# simple-lama-inpainting>=0.1.2 # Local Fourier convolution inpainting (LaMa)
+# easyocr>=1.7.0                # Local text & subtitle OCR

@@ -23,6 +23,18 @@ let shortlistedSfx = JSON.parse(localStorage.getItem('shortlisted_sfx') || '[]')
 let defaultMusicVolume = 0.15;
 let defaultSfxVolume = 0.30;
 
+let currentTemplateBlueprint = null;
+let templateSlotFiles = {};
+let templateSlotRawFiles = {};
+let currentTemplateDepthMode = 'foreground';
+let currentTemplateBackdropMode = 'studio_gray';
+let currentTemplateVerticalPos = 0.50;
+let currentTemplateTextColor = 'white';
+let currentTemplateSubjectScale = 1.00;
+let currentTemplateAnchorMode = 'smart';
+let currentTemplatePosXOffset = 0;
+let currentTemplatePosYOffset = 0;
+
 const systemStatusPill = document.getElementById('system-status-pill');
 const systemStatusText = document.getElementById('system-status-text');
 const consoleLogs = document.getElementById('console-logs');
@@ -110,6 +122,49 @@ const agentCards = {
     "Motion Graphics Agent": document.getElementById('agent-motion-graphics')
 };
 
+let currentTemplateEventSource = null;
+let currentAgentMode = 'standard';
+
+// TEMPLATE MODE NEURAL MODEL DOM ELEMENT MAP
+const templateAgentCards = {
+    "Snapdragon NPU": document.getElementById('agent-tpl-npu'),
+    "Blueprint Analyzer": document.getElementById('agent-tpl-blueprint'),
+    "BiRefNet Matting": document.getElementById('agent-tpl-matting'),
+    "ISNet Masking": document.getElementById('agent-tpl-masking'),
+    "Model Dispatcher": document.getElementById('agent-tpl-dispatcher'),
+    "LaMa Inpainting": document.getElementById('agent-tpl-inpainting'),
+    "Anatomical Aligner": document.getElementById('agent-tpl-aligner'),
+    "3D Depth Compositor": document.getElementById('agent-tpl-compositor'),
+    "Audio Sync & Mux": document.getElementById('agent-tpl-audio')
+};
+
+function switchAgentMode(mode) {
+    currentAgentMode = mode;
+    const gridStandard = document.getElementById('agent-grid-standard');
+    const gridTemplate = document.getElementById('agent-grid-template');
+    const badge = document.getElementById('agent-pipeline-badge');
+    
+    if (mode === 'template') {
+        if (gridStandard) gridStandard.classList.add('hidden');
+        if (gridTemplate) gridTemplate.classList.remove('hidden');
+        if (badge) {
+            badge.textContent = 'Template Cloning Pipeline';
+            badge.style.background = 'rgba(6, 182, 212, 0.15)';
+            badge.style.color = '#22d3ee';
+            badge.style.borderColor = 'rgba(6, 182, 212, 0.3)';
+        }
+    } else {
+        if (gridTemplate) gridTemplate.classList.add('hidden');
+        if (gridStandard) gridStandard.classList.remove('hidden');
+        if (badge) {
+            badge.textContent = 'Standard Multi-Agent';
+            badge.style.background = 'rgba(139, 92, 246, 0.15)';
+            badge.style.color = '#a78bfa';
+            badge.style.borderColor = 'rgba(139, 92, 246, 0.3)';
+        }
+    }
+}
+
 // INITIALIZE APP
 function init() {
     setupUploadHandlers();
@@ -123,6 +178,9 @@ function init() {
     setupPlayheadScrubbing(); // Setup interactive playhead scrubbing
     setupSettingsModal();
     setupLibraryPanel();
+    setupTemplateHandlers();
+    setupPhotoCropModal();
+    setupPlayerTransformBox();
     
     btnReset.addEventListener('click', resetWorkspace);
     
@@ -141,7 +199,11 @@ function setupAssetTabs() {
             document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
             btn.classList.add('active');
             const tabId = btn.dataset.tab;
-            document.getElementById('tab-' + tabId).classList.add('active');
+            const targetContent = document.getElementById('tab-' + tabId);
+            if (targetContent) targetContent.classList.add('active');
+            
+            // Dynamically switch Agent Operations Center view (Standard vs Template models)
+            switchAgentMode(tabId === 'template' ? 'template' : 'standard');
         });
     });
 }
@@ -677,13 +739,14 @@ function startLogStream() {
         const match = log.message.match(/Writing output video to disk\.\.\. (\d+)%/);
         if (match) {
             const pct = match[1];
-            renderStatusHeading.innerText = `Rendering Video... ${pct}%`;
+            updateRenderProgress(pct, "Writing output video to disk", `${pct}% complete`);
             playerRenderingSpinner.classList.remove('hidden');
         }
         
         // Handle core system triggers
         if (log.message === "VIDEO_COMPILE_SUCCESSFUL") {
             currentEventSource.close();
+            updateRenderProgress(100, "Render Complete", "Finished 100%");
             completeCompile();
             return;
         }
@@ -706,6 +769,40 @@ function startLogStream() {
     };
 }
 
+// REAL-TIME RENDER PROGRESS BAR HELPER
+function updateRenderProgress(pct, phase, detail) {
+    const p = Math.max(0, Math.min(100, parseInt(pct) || 0));
+    
+    // 1. Preview Player Overlay Elements
+    const playerPct = document.getElementById('render-progress-percent');
+    const playerFill = document.getElementById('render-progress-fill');
+    const playerPhase = document.getElementById('render-progress-phase');
+    const playerDetail = document.getElementById('render-progress-frame-detail');
+    const playerHeading = document.getElementById('render-status-heading');
+    
+    if (playerPct) playerPct.textContent = `${p}%`;
+    if (playerFill) playerFill.style.width = `${p}%`;
+    if (playerPhase && phase) playerPhase.textContent = phase;
+    if (playerDetail && detail) playerDetail.textContent = detail;
+    if (playerHeading) playerHeading.textContent = `Rendering Video... ${p}%`;
+    
+    // 2. Template Tab Progress Card Elements
+    const tplCard = document.getElementById('template-render-progress-card');
+    const tplPct = document.getElementById('tpl-progress-percentage');
+    const tplFill = document.getElementById('tpl-progress-bar-fill');
+    const tplBadge = document.getElementById('tpl-progress-agent-badge');
+    const tplCounter = document.getElementById('tpl-progress-frame-counter');
+    
+    if (tplCard && tplCard.classList.contains('hidden')) tplCard.classList.remove('hidden');
+    if (tplPct) tplPct.textContent = `${p}%`;
+    if (tplFill) tplFill.style.width = `${p}%`;
+    if (tplBadge && phase) tplBadge.textContent = phase;
+    if (tplCounter && detail) tplCounter.textContent = detail;
+    
+    // 3. System Status Pill
+    setSystemStatus('running', `Rendering Video... ${p}%`);
+}
+
 // CONSOLE LOGGER HELPERS
 function appendLog(agent, role, message, level) {
     const logLine = document.createElement('div');
@@ -720,19 +817,21 @@ function appendLog(agent, role, message, level) {
 
 // UPDATE ACTIVE AGENT CARD STATUS
 function updateAgentUI(agentName, level, message) {
-    const card = agentCards[agentName];
+    const isTpl = templateAgentCards && templateAgentCards[agentName];
+    const activeGroup = isTpl ? templateAgentCards : agentCards;
+    const card = activeGroup[agentName];
     if (!card) return;
     
-    // Reset active states for others (unless they are marked skipped)
-    Object.keys(agentCards).forEach(name => {
-        const otherCard = agentCards[name];
-        if (otherCard.classList.contains('active')) {
+    // Reset active states for others in this active group
+    Object.keys(activeGroup).forEach(name => {
+        const otherCard = activeGroup[name];
+        if (otherCard && otherCard !== card && otherCard.classList.contains('active')) {
             otherCard.className = 'agent-card success'; // Transition to success after active
         }
     });
     
     // Set current agent class
-    if (message.includes("Bypassed")) {
+    if (message.includes("Bypassed") || message.includes("standby") || message.includes("bypassed")) {
         card.className = 'agent-card skipped';
     } else if (level === "ALERT" || message.includes("suspended") || message.includes("Missing") || message.includes("Copyright suspension")) {
         card.className = 'agent-card warning';
@@ -745,6 +844,8 @@ function updateAgentUI(agentName, level, message) {
                 showStoryboardResolver();
             }
         }
+    } else if (level === "SUCCESS") {
+        card.className = 'agent-card success';
     } else {
         card.className = 'agent-card active';
     }
@@ -1304,6 +1405,114 @@ function setupTimelineZoom() {
     });
 }
 
+// PREVIEW PLAYER ASPECT RATIO & DISPLAY CONTROLS
+let currentPlayerAspectMode = 'auto';
+let currentPlayerFitMode = 'contain';
+
+function updatePlayerAspectFromMetadata() {
+    const container = document.getElementById('player-container');
+    const resText = document.getElementById('player-res-text');
+    const aspectText = document.getElementById('player-aspect-text');
+    if (!mainVideoPlayer || !container) return;
+
+    const w = mainVideoPlayer.videoWidth;
+    const h = mainVideoPlayer.videoHeight;
+    if (!w || !h) return;
+
+    if (resText) {
+        resText.innerText = `${w} × ${h}`;
+    }
+
+    const ratio = w / h;
+    let label = 'Auto';
+    if (Math.abs(ratio - (9 / 16)) < 0.08) {
+        label = '9:16 (Reel)';
+    } else if (Math.abs(ratio - (16 / 9)) < 0.08) {
+        label = '16:9 (Landscape)';
+    } else if (Math.abs(ratio - 1) < 0.08) {
+        label = '1:1 (Square)';
+    } else if (Math.abs(ratio - (4 / 5)) < 0.08) {
+        label = '4:5 (Portrait)';
+    } else {
+        label = `${ratio.toFixed(2)}:1`;
+    }
+
+    if (aspectText) {
+        aspectText.innerText = label;
+    }
+
+    if (currentPlayerAspectMode === 'auto') {
+        container.style.setProperty('--player-aspect-ratio', `${ratio}`);
+    }
+}
+
+window.setPlayerAspect = function(mode) {
+    currentPlayerAspectMode = mode;
+    const container = document.getElementById('player-container');
+    const aspectText = document.getElementById('player-aspect-text');
+    
+    // Update button active state
+    ['auto', '9-16', '16-9', '1-1'].forEach(m => {
+        const btn = document.getElementById('btn-aspect-' + m);
+        if (btn) {
+            btn.classList.toggle('active', (m === '9-16' && mode === '9:16') ||
+                                          (m === '16-9' && mode === '16:9') ||
+                                          (m === '1-1' && mode === '1:1') ||
+                                          (m === 'auto' && mode === 'auto'));
+        }
+    });
+
+    if (!container) return;
+
+    if (mode === 'auto') {
+        updatePlayerAspectFromMetadata();
+    } else if (mode === '9:16') {
+        container.style.setProperty('--player-aspect-ratio', '9 / 16');
+        if (aspectText) aspectText.innerText = '9:16 (Reel)';
+    } else if (mode === '16:9') {
+        container.style.setProperty('--player-aspect-ratio', '16 / 9');
+        if (aspectText) aspectText.innerText = '16:9 (Landscape)';
+    } else if (mode === '1:1') {
+        container.style.setProperty('--player-aspect-ratio', '1 / 1');
+        if (aspectText) aspectText.innerText = '1:1 (Square)';
+    }
+};
+
+window.togglePlayerFit = function() {
+    const container = document.getElementById('player-container');
+    const btn = document.getElementById('btn-player-fit');
+    if (!container) return;
+
+    if (currentPlayerFitMode === 'contain') {
+        currentPlayerFitMode = 'cover';
+        container.classList.add('fit-cover');
+        if (btn) btn.innerText = 'Fill: Zoom';
+    } else {
+        currentPlayerFitMode = 'contain';
+        container.classList.remove('fit-cover');
+        if (btn) btn.innerText = 'Fit: Full';
+    }
+};
+
+window.togglePlayerFullscreen = function() {
+    const frame = document.getElementById('preview-player-frame') || document.getElementById('player-container');
+    if (!frame) return;
+
+    if (!document.fullscreenElement) {
+        if (frame.requestFullscreen) {
+            frame.requestFullscreen();
+        } else if (frame.webkitRequestFullscreen) {
+            frame.webkitRequestFullscreen();
+        } else if (frame.msRequestFullscreen) {
+            frame.msRequestFullscreen();
+        }
+    } else {
+        if (document.exitFullscreen) {
+            document.exitFullscreen();
+        }
+    }
+};
+
 // PREVIEW PLAYER SETUP CONTROLS
 function setupPlayerControls() {
     // Play/Pause Click events
@@ -1327,6 +1536,7 @@ function setupPlayerControls() {
     mainVideoPlayer.addEventListener('loadedmetadata', () => {
         videoDuration = mainVideoPlayer.duration;
         playerTimeDisplay.innerText = `00:00 / ${formatTime(videoDuration)}`;
+        updatePlayerAspectFromMetadata();
         if (systemStatus === 'idle') {
             setupStoryboardDetails();
         }
@@ -1583,61 +1793,258 @@ window.removeTextOverlay = function(id) {
 };
 
 // REPROMPT SYSTEM
+// AI SUPERVISOR REFINEMENT SYSTEM
 function setupReprompt() {
     const btnReprompt = document.getElementById('btn-reprompt');
     const btnFresh = document.getElementById('btn-start-fresh');
+    const statusBox = document.getElementById('supervisor-status-box');
     if (!btnReprompt || !btnFresh) return;
-    
+
+    // Quick Pill clicks
+    document.querySelectorAll('.btn-supervisor-pill').forEach(pill => {
+        pill.addEventListener('click', () => {
+            const txt = document.getElementById('reprompt-text');
+            if (txt) {
+                const currentVal = txt.value.trim();
+                const toAdd = pill.dataset.prompt;
+                if (currentVal) {
+                    txt.value = currentVal + ', ' + toAdd;
+                } else {
+                    txt.value = toAdd;
+                }
+            }
+        });
+    });
+
     btnReprompt.addEventListener('click', async () => {
         const newPrompt = document.getElementById('reprompt-text').value.trim();
-        if (!newPrompt) { alert('Please enter new instructions.'); return; }
-        
+        if (!newPrompt) { alert('Please enter your feedback or adjustments.'); return; }
+
         btnReprompt.disabled = true;
-        btnReprompt.innerHTML = '<i data-lucide="loader"></i> Re-editing...';
-        lucide.createIcons();
-        
+        btnReprompt.innerHTML = '<i data-lucide="loader"></i> Supervisor Refining...';
+        if (window.lucide) lucide.createIcons();
+
+        if (statusBox) {
+            statusBox.classList.remove('hidden');
+            statusBox.innerHTML = '⚡ <b>Supervisor AI:</b> Analyzing feedback & re-rendering video...';
+        }
+
         try {
-            const payload = { 
-                prompt: newPrompt,
-                default_music_volume: defaultMusicVolume,
-                default_sfx_volume: defaultSfxVolume,
-                music_config_json: JSON.stringify(musicAssets.map(a => ({ filename: a.file.name, volume: a.volume }))),
-                sfx_config_json: JSON.stringify(sfxAssets.map(a => ({ filename: a.file.name, volume: a.volume })))
-            };
-            
-            const res = await fetch('/api/reprompt', {
+            const res = await fetch('/api/template/supervisor-refine', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
+                body: JSON.stringify({ prompt: newPrompt })
             });
             const data = await res.json();
             if (data.status === 'success') {
-                document.getElementById('prompt').value = newPrompt;
-                document.getElementById('reprompt-panel').classList.add('hidden');
-                consoleLogs.innerHTML = '<div class="log-line system">[System] Reprompt accepted. Re-running agent pipeline...</div>';
-                setSystemStatus('running', 'Re-Analyzing...');
-                playerRenderingSpinner.classList.remove('hidden');
-                renderStatusHeading.innerText = 'Re-processing with new instructions...';
-                Object.values(agentCards).forEach(card => { card.className = 'agent-card idle'; });
-                restoreJobState();
-                startLogStream();
+                if (statusBox) {
+                    statusBox.innerHTML = `✨ <b>Supervisor Applied:</b> ${data.explanation || 'Refinements rendered.'}`;
+                }
+                // Reload video in player
+                if (mainVideoPlayer && data.video_url) {
+                    mainVideoPlayer.src = data.video_url;
+                    mainVideoPlayer.load();
+                    mainVideoPlayer.play().catch(() => {});
+                }
+                const logEl = document.getElementById('console-logs');
+                if (logEl) {
+                    logEl.innerHTML += `<div class="log-line system">[Supervisor] ${data.explanation}</div>`;
+                }
             } else {
-                alert('Reprompt failed: ' + (data.detail || data.message));
+                alert('Supervisor refinement failed: ' + (data.detail || data.message));
             }
         } catch(e) {
-            alert('Reprompt request failed: ' + e.message);
+            alert('Supervisor request failed: ' + e.message);
         } finally {
             btnReprompt.disabled = false;
-            btnReprompt.innerHTML = '<i data-lucide="refresh-cw"></i> Re-Edit with Changes';
-            lucide.createIcons();
+            btnReprompt.innerHTML = '<i data-lucide="sparkles"></i> Apply AI Refinement';
+            if (window.lucide) lucide.createIcons();
         }
     });
-    
+
     btnFresh.addEventListener('click', () => {
         document.getElementById('reprompt-panel').classList.add('hidden');
         resetWorkspace();
     });
+
+    // Frame-by-Frame Comparison Supervisor Audit
+    const btnFrameAudit = document.getElementById('btn-run-frame-audit');
+    const compTray = document.getElementById('supervisor-comparison-tray');
+    const compSummary = document.getElementById('supervisor-comparison-summary');
+    const compCarousel = document.getElementById('supervisor-comparison-carousel');
+
+    if (btnFrameAudit) {
+        btnFrameAudit.addEventListener('click', async () => {
+            btnFrameAudit.disabled = true;
+            btnFrameAudit.innerHTML = '<i data-lucide="loader"></i> Comparing Frames...';
+            if (window.lucide) lucide.createIcons();
+
+            if (compTray) compTray.classList.remove('hidden');
+            if (compSummary) compSummary.innerHTML = '<div style="font-size:0.75rem; color:#cbd5e1; display:flex; align-items:center; gap:6px;"><i data-lucide="loader" style="width:14px; height:14px;"></i> Extracting key frames & running computer vision comparison...</div>';
+            if (window.lucide) lucide.createIcons();
+
+            try {
+                const res = await fetch('/api/supervisor/compare');
+                const data = await res.json();
+                if (data.status === 'success' && data.report) {
+                    renderFrameComparisonReport(data.report);
+                } else {
+                    if (compSummary) compSummary.innerHTML = `<div style="color:#f87171; font-size:0.75rem;">Audit Error: ${data.detail || 'Could not complete frame audit'}</div>`;
+                }
+            } catch (err) {
+                if (compSummary) compSummary.innerHTML = `<div style="color:#f87171; font-size:0.75rem;">Failed to fetch frame comparison: ${err.message}</div>`;
+            } finally {
+                btnFrameAudit.disabled = false;
+                btnFrameAudit.innerHTML = '<i data-lucide="scan"></i> Inspect Frames';
+                if (window.lucide) lucide.createIcons();
+            }
+        });
+    }
+
+    // AUTONOMOUS CLOSED-LOOP SELF-HEALING SUPERVISOR
+    const btnAutoHeal = document.getElementById('btn-auto-heal-discrepancies');
+    if (btnAutoHeal) {
+        btnAutoHeal.addEventListener('click', async () => {
+            btnAutoHeal.disabled = true;
+            btnAutoHeal.innerHTML = '<i data-lucide="loader"></i> Self-Healing...';
+            if (window.lucide) lucide.createIcons();
+
+            if (statusBox) {
+                statusBox.classList.remove('hidden');
+                statusBox.innerHTML = '⚡ <b>Autonomous Supervisor:</b> Auditing discrepancies & auto-correcting parameters in closed loop...';
+            }
+            if (compTray) compTray.classList.remove('hidden');
+            if (compSummary) compSummary.innerHTML = '<div style="font-size:0.75rem; color:#cbd5e1; display:flex; align-items:center; gap:6px;"><i data-lucide="loader" style="width:14px; height:14px;"></i> Running autonomous closed-loop self-correction (audit ➔ prescribe ➔ re-render)...</div>';
+            if (window.lucide) lucide.createIcons();
+
+            try {
+                const res = await fetch('/api/supervisor/auto-heal', { method: 'POST' });
+                const data = await res.json();
+                if (data.status === 'success') {
+                    if (statusBox) {
+                        statusBox.innerHTML = `✨ <b>Self-Healing Complete:</b> ${data.explanation}`;
+                    }
+                    if (mainVideoPlayer && data.video_url) {
+                        mainVideoPlayer.src = data.video_url;
+                        mainVideoPlayer.load();
+                        mainVideoPlayer.play().catch(() => {});
+                    }
+                    if (data.report) {
+                        renderFrameComparisonReport(data.report);
+                    }
+                    const logEl = document.getElementById('console-logs');
+                    if (logEl) {
+                        logEl.innerHTML += `<div class="log-line system">[Self-Healing] ${data.explanation}</div>`;
+                    }
+                } else {
+                    alert('Auto-healing failed: ' + (data.detail || data.message));
+                }
+            } catch (err) {
+                alert('Auto-healing request error: ' + err.message);
+            } finally {
+                btnAutoHeal.disabled = false;
+                btnAutoHeal.innerHTML = '<i data-lucide="sparkles"></i> Auto-Heal';
+                if (window.lucide) lucide.createIcons();
+            }
+        });
+    }
 }
+
+// RENDER FRAME-BY-FRAME COMPARISON REPORT IN SUPERVISOR PANEL
+function renderFrameComparisonReport(report) {
+    const compTray = document.getElementById('supervisor-comparison-tray');
+    const compSummary = document.getElementById('supervisor-comparison-summary');
+    const compCarousel = document.getElementById('supervisor-comparison-carousel');
+    if (!compTray || !compSummary || !compCarousel) return;
+
+    compTray.classList.remove('hidden');
+
+    const score = report.overall_score || 0;
+    const scoreColor = score >= 90 ? '#4ade80' : score >= 80 ? '#fbbf24' : '#f87171';
+    const scoreBg = score >= 90 ? 'rgba(34,197,94,0.15)' : score >= 80 ? 'rgba(251,191,36,0.15)' : 'rgba(248,113,113,0.15)';
+
+    let selfHealingHtml = '';
+    if (report.self_healing && report.self_healing.self_healing_applied) {
+        const sh = report.self_healing;
+        const acts = (sh.actions_taken || []).map(a => `<li>${a}</li>`).join('');
+        selfHealingHtml = `
+            <div style="margin-top:8px; padding:6px 10px; background:rgba(34,197,94,0.12); border:1px solid rgba(34,197,94,0.3); border-radius:6px; font-size:0.72rem; color:#86efac;">
+                <div style="font-weight:700; display:flex; align-items:center; gap:4px;">
+                    <span>✨ Autonomous Self-Healing Applied:</span>
+                    <span style="color:#fff;">${sh.initial_score}% ➔ ${sh.final_score}% (${sh.iterations_run} cycle${sh.iterations_run > 1 ? 's' : ''})</span>
+                </div>
+                ${acts ? `<ul style="margin:4px 0 0 16px; padding:0; line-height:1.3; color:#cbd5e1;">${acts}</ul>` : ''}
+            </div>
+        `;
+    }
+
+    compSummary.innerHTML = `
+        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:8px;">
+            <div style="display:flex; align-items:center; gap:8px;">
+                <div style="background:${scoreBg}; color:${scoreColor}; font-weight:800; font-size:1.1rem; padding:4px 10px; border-radius:8px; border:1px solid ${scoreColor}40;">
+                    ${score}%
+                </div>
+                <div>
+                    <div style="font-size:0.82rem; font-weight:700; color:#fff;">Overall Reference Fidelity</div>
+                    <div style="font-size:0.70rem; color:rgba(255,255,255,0.6);">${report.frames_audited || 0} Key Frames Analyzed (Text, Occlusion, Lighting)</div>
+                </div>
+            </div>
+            <span class="badge" style="background:rgba(139,92,246,0.2); color:#c4b5fd; font-size:0.68rem; padding:3px 8px; border-radius:12px;">Automated CV Audit</span>
+        </div>
+        <div style="font-size:0.73rem; color:#cbd5e1; line-height:1.4; background:rgba(0,0,0,0.25); padding:6px 10px; border-radius:6px; border-left:3px solid ${scoreColor};">
+            ${report.verdict || 'Visual alignment verified against reference clip.'}
+        </div>
+        ${selfHealingHtml}
+    `;
+
+    compCarousel.innerHTML = '';
+    const frames = report.frame_results || [];
+    frames.forEach(f => {
+        const frameScore = f.score || 0;
+        const fColor = frameScore >= 90 ? '#4ade80' : frameScore >= 80 ? '#fbbf24' : '#f87171';
+        const card = document.createElement('div');
+        card.className = 'comparison-frame-card';
+        card.style.cssText = 'background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.08); border-radius:8px; padding:8px; display:flex; flex-direction:column; gap:6px;';
+
+        const refWordsStr = (f.ref_words && f.ref_words.length) ? f.ref_words.join(', ') : 'None / Graphic';
+        const outWordsStr = (f.out_words && f.out_words.length) ? f.out_words.join(', ') : 'None / Graphic';
+
+        card.innerHTML = `
+            <div style="display:flex; align-items:center; justify-content:space-between;">
+                <div style="display:flex; align-items:center; gap:6px;">
+                    <button type="button" class="btn-time-jump" onclick="seekPlayerToTime(${f.time})" style="background:rgba(139,92,246,0.25); border:none; border-radius:4px; padding:2px 6px; color:#c4b5fd; font-size:0.72rem; cursor:pointer; font-weight:600;" title="Click to jump player">
+                        ⏱️ ${f.time.toFixed(1)}s
+                    </button>
+                    <span style="font-size:0.72rem; color:rgba(255,255,255,0.5);">Key Frame</span>
+                </div>
+                <span style="font-size:0.74rem; font-weight:700; color:${fColor}; background:${fColor}15; padding:2px 8px; border-radius:10px; border:1px solid ${fColor}30;">
+                    ${frameScore}% Match
+                </span>
+            </div>
+            <div style="position:relative; border-radius:6px; overflow:hidden; border:1px solid rgba(255,255,255,0.12); cursor:pointer;" onclick="window.open('${f.image_url}', '_blank')" title="Click to view high-resolution inspection composite">
+                <img src="${f.image_url}?t=${Date.now()}" alt="Comparison at ${f.time}s" style="width:100%; display:block; aspect-ratio: 16/9; object-fit: cover;" loading="lazy">
+                <div style="position:absolute; bottom:4px; right:6px; background:rgba(0,0,0,0.7); font-size:0.62rem; color:#cbd5e1; padding:2px 6px; border-radius:4px;">
+                    🔍 Click to Enlarge [REF | OUTPUT]
+                </div>
+            </div>
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px; font-size:0.68rem; color:rgba(255,255,255,0.7); background:rgba(0,0,0,0.2); padding:6px; border-radius:4px;">
+                <div><b>Ref Text:</b> <span style="color:#e2e8f0;">${refWordsStr}</span></div>
+                <div><b>Out Text:</b> <span style="color:#e2e8f0;">${outWordsStr}</span></div>
+                <div><b>Edge Contrast:</b> ${f.contrast_score}%</div>
+                <div><b>Luminance Match:</b> ${f.lum_match}%</div>
+            </div>
+        `;
+        compCarousel.appendChild(card);
+    });
+    if (window.lucide) lucide.createIcons();
+}
+
+window.seekPlayerToTime = function(sec) {
+    if (mainVideoPlayer) {
+        mainVideoPlayer.currentTime = sec;
+        mainVideoPlayer.pause();
+    }
+};
 
 // LIVE TEXT OVERLAY RENDERER IN PLAYER
 function renderLiveTextOverlays(time) {
@@ -3215,6 +3622,1107 @@ function setupLicenseActivation() {
             lucide.createIcons();
         }
     });
+}
+
+// TEMPLATE MAKER HANDLERS
+async function updateLocalAIStatus() {
+    try {
+        const res = await fetch('/api/template/model-status');
+        const json = await res.json();
+        if (json.status === 'success') {
+            const data = json.data;
+            const titleEl = document.getElementById('local-ai-title');
+            const descEl = document.getElementById('local-ai-desc');
+            const badgeEl = document.getElementById('local-ai-badge');
+            const dotEl = document.getElementById('local-ai-dot');
+            const cardEl = document.getElementById('local-ai-status-card');
+
+            if (data.active_provider === 'local_ollama') {
+                if (titleEl) titleEl.textContent = 'Local PC AI Vision Engine';
+                if (descEl) descEl.textContent = `Running 100% on your PC GPU using ${data.active_model}. $0 API cost.`;
+                if (badgeEl) { badgeEl.textContent = '100% On-Device'; badgeEl.style.background = 'rgba(34, 197, 94, 0.2)'; badgeEl.style.color = '#4ade80'; }
+                if (dotEl) dotEl.style.background = '#22c55e';
+                if (cardEl) { cardEl.style.borderColor = 'rgba(34, 197, 94, 0.25)'; cardEl.style.background = 'rgba(34, 197, 94, 0.08)'; }
+            } else if (data.active_provider === 'gemini_cloud') {
+                if (titleEl) titleEl.textContent = 'Cloud AI Vision (Gemini)';
+                if (descEl) descEl.textContent = 'Using connected Gemini API for visual extraction.';
+                if (badgeEl) { badgeEl.textContent = 'Cloud API'; badgeEl.style.background = 'rgba(139, 92, 246, 0.2)'; badgeEl.style.color = '#a78bfa'; }
+                if (dotEl) dotEl.style.background = '#8b5cf6';
+            } else {
+                if (titleEl) titleEl.textContent = 'Smart Offline Heuristic';
+                if (descEl) descEl.textContent = 'Extracting shots via frame-hash variance analysis.';
+                if (badgeEl) { badgeEl.textContent = 'Offline'; badgeEl.style.background = 'rgba(255, 255, 255, 0.1)'; badgeEl.style.color = 'rgba(255,255,255,0.7)'; }
+                if (dotEl) dotEl.style.background = '#94a3b8';
+            }
+        }
+    } catch (e) {
+        console.warn('Could not fetch local AI status:', e);
+    }
+}
+
+function setupTemplateHandlers() {
+    const dropzoneTemplateRef = document.getElementById('dropzone-template-ref');
+    const inputTemplateRef = document.getElementById('input-template-ref');
+    const listTemplateRef = document.getElementById('list-template-ref');
+    const btnExtractTemplate = document.getElementById('btn-extract-template');
+    const btnRenderTemplate = document.getElementById('btn-render-template');
+
+    updateLocalAIStatus();
+
+    if (!dropzoneTemplateRef || !inputTemplateRef || !btnExtractTemplate) return;
+
+    dropzoneTemplateRef.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        dropzoneTemplateRef.style.borderColor = 'var(--color-primary)';
+        dropzoneTemplateRef.style.background = 'rgba(139, 92, 246, 0.05)';
+    });
+    dropzoneTemplateRef.addEventListener('dragleave', () => {
+        dropzoneTemplateRef.style.borderColor = 'var(--border-color)';
+        dropzoneTemplateRef.style.background = '';
+    });
+
+    inputTemplateRef.addEventListener('change', () => {
+        if (inputTemplateRef.files.length) {
+            updateFileList(inputTemplateRef, listTemplateRef);
+        }
+    });
+
+    dropzoneTemplateRef.addEventListener('drop', (e) => {
+        e.preventDefault();
+        inputTemplateRef.files = e.dataTransfer.files;
+        updateFileList(inputTemplateRef, listTemplateRef);
+        dropzoneTemplateRef.style.borderColor = 'var(--border-color)';
+        dropzoneTemplateRef.style.background = '';
+    });
+
+    btnExtractTemplate.addEventListener('click', async () => {
+        const file = inputTemplateRef.files[0];
+        if (!file) {
+            alert('Please select an edit video to extract a template blueprint.');
+            return;
+        }
+
+        btnExtractTemplate.disabled = true;
+        btnExtractTemplate.innerHTML = '<i data-lucide="loader"></i> Extracting Template Blueprint...';
+        if (window.lucide) lucide.createIcons();
+
+        appendLog('Blueprint Analyzer', 'Vision & Beat Extractor', 'Extracting template blueprint, visual pacing, cut boundaries, and typography layout from reference video...', 'INFO');
+        updateAgentUI('Blueprint Analyzer', 'INFO', 'Analyzing video structure...');
+
+        const formData = new FormData();
+        formData.append('template_video', file);
+
+        try {
+            const res = await fetch('/api/template/extract', {
+                method: 'POST',
+                body: formData
+            });
+            const data = await res.json();
+            if (data.status === 'success') {
+                currentTemplateBlueprint = data.blueprint;
+                renderTemplateSlotsUI(currentTemplateBlueprint);
+                const photoSlots = data.blueprint.photo_slots || 0;
+                const videoSlots = data.blueprint.video_slots || 0;
+                const breakdownMsg = (photoSlots || videoSlots) ? ` (${photoSlots} photos + ${videoSlots} clips)` : '';
+                appendLog('Blueprint Analyzer', 'Vision & Beat Extractor', `Template Blueprint extracted: ${data.blueprint.slot_count} placeholder slots identified (${data.blueprint.filter_label} grading, ${data.blueprint.total_duration}s duration).`, 'SUCCESS');
+                updateAgentUI('Blueprint Analyzer', 'SUCCESS', 'Extraction complete');
+                alert(`Template extracted! Identified ${data.blueprint.slot_count} placeholder slots${breakdownMsg}.\nFilter: ${data.blueprint.filter_label}.`);
+            } else {
+                appendLog('Blueprint Analyzer', 'Vision & Beat Extractor', 'Template extraction failed: ' + (data.detail || data.message), 'ERROR');
+                updateAgentUI('Blueprint Analyzer', 'ERROR', 'Extraction failed');
+                alert('Template extraction failed: ' + (data.detail || data.message));
+            }
+        } catch (e) {
+            appendLog('Blueprint Analyzer', 'Vision & Beat Extractor', 'Template extraction request failed: ' + e.message, 'ERROR');
+            alert('Template extraction request failed: ' + e.message);
+        } finally {
+            btnExtractTemplate.disabled = false;
+            btnExtractTemplate.innerHTML = '<i data-lucide="sparkles"></i> Extract Template Blueprint';
+            if (window.lucide) lucide.createIcons();
+        }
+    });
+
+    if (btnRenderTemplate) {
+        btnRenderTemplate.addEventListener('click', async () => {
+            await renderTemplateEdit();
+        });
+    }
+}
+
+function renderTemplateSlotsUI(blueprint) {
+    const card = document.getElementById('template-blueprint-card');
+    const cardName = document.getElementById('template-card-name');
+    const cardInfo = document.getElementById('template-card-info');
+    const filterTag = document.getElementById('template-filter-tag');
+    const slotsContainer = document.getElementById('template-slots-container');
+    const btnRender = document.getElementById('btn-render-template');
+
+    if (!blueprint || !slotsContainer) return;
+
+    if (card) card.classList.remove('hidden');
+    if (cardName) cardName.textContent = blueprint.template_name || 'Template Blueprint';
+
+    // Show photo/video slot breakdown in the summary
+    const photoCount = blueprint.photo_slots || 0;
+    const videoCount = blueprint.video_slots || 0;
+    const breakdownStr = (photoCount || videoCount)
+        ? ` • 📷 ${photoCount} photo${photoCount !== 1 ? 's' : ''} + 🎬 ${videoCount} clip${videoCount !== 1 ? 's' : ''}`
+        : '';
+    if (cardInfo) cardInfo.textContent = `${blueprint.slot_count} slots • ${blueprint.total_duration}s${breakdownStr}`;
+    if (filterTag) filterTag.textContent = `Filter: ${blueprint.filter_label || 'Natural'}`;
+
+    // Update typography and transition style display
+    const style = blueprint.caption_style || {};
+    const fontEl = document.getElementById('tb-font-name');
+    const layerEl = document.getElementById('tb-layer-mode');
+    const transEl = document.getElementById('tb-transition-mode');
+    if (fontEl) fontEl.textContent = style.font_family || 'Century Gothic Bold';
+    if (layerEl) layerEl.textContent = (style.layer_depth === 'behind_subject' ? 'Behind Subject' : 'Foreground Overlay');
+    if (transEl) transEl.textContent = (style.transition === 'fade' ? 'Smooth Fade' : 'Instant Cut');
+
+    // Auto-sync depth controls with blueprint style
+    if (style.layer_depth) {
+        setLayerDepthMode(style.layer_depth);
+    }
+    if (style.vertical_pos !== undefined) {
+        updateDepthVerticalPos(style.vertical_pos * 100);
+    }
+
+    slotsContainer.innerHTML = '';
+    templateSlotFiles = {};
+    window.templateSlotTimings = {};
+
+    blueprint.placeholders.forEach(slot => {
+        window.templateSlotTimings[slot.slot_id] = { 
+            start: parseFloat(slot.start) || 0.0, 
+            end: parseFloat(slot.end) || (parseFloat(slot.start) + parseFloat(slot.duration)) 
+        };
+        const isPhoto = slot.recommended_type === 'photo';
+        const isVideo = slot.recommended_type === 'video';
+        const badgeClass = isPhoto ? 'slot-badge-photo' : (isVideo ? 'slot-badge-video' : 'slot-badge-any');
+        const badgeLabel = isPhoto ? '📷 PHOTO' : (isVideo ? '🎬 VIDEO' : '📁 ANY');
+        const acceptAttr = isPhoto ? 'image/*' : (isVideo ? 'video/*' : 'video/*,image/*');
+
+        // Default to Keep Original if slot 1 is a title/intro, or allow instant toggle
+        const slotCard = document.createElement('div');
+        slotCard.className = 'template-slot-card';
+        slotCard.id = `template-slot-card-${slot.slot_id}`;
+        
+        slotCard.innerHTML = `
+            <div class="template-slot-header">
+                <div style="display:flex; align-items:center; gap:6px;">
+                    <span style="font-weight:700;">#${slot.slot_id}</span>
+                    <span class="slot-type-badge ${badgeClass}">${badgeLabel}</span>
+                </div>
+                <span id="slot-header-dur-${slot.slot_id}" style="font-size:0.68rem; color:#22d3ee; font-weight:600;">${slot.duration}s</span>
+            </div>
+
+            <!-- Mode Toggle: Keep Original vs Replace -->
+            <div class="slot-mode-toggle" style="display:flex; gap:4px; margin:4px 0;">
+                <button type="button" class="btn-slot-mode active" id="btn-mode-replace-${slot.slot_id}" onclick="setSlotMode(${slot.slot_id}, 'replace')">
+                    📤 Replace
+                </button>
+                <button type="button" class="btn-slot-mode" id="btn-mode-keep-${slot.slot_id}" onclick="setSlotMode(${slot.slot_id}, 'keep')">
+                    📌 Keep Original
+                </button>
+            </div>
+
+            <!-- Replace Upload Input -->
+            <div id="slot-replace-box-${slot.slot_id}">
+                <input type="file" accept="${acceptAttr}" data-slot="${slot.slot_id}" class="template-slot-input" id="slot-input-${slot.slot_id}">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-top:4px; gap:6px;">
+                    <span class="slot-filename" id="slot-name-${slot.slot_id}" style="font-size:0.68rem; color:#a78bfa; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1;">No file chosen (will keep original)</span>
+                    <button type="button" class="btn-crop-slot hidden" id="btn-crop-slot-${slot.slot_id}" onclick="openPhotoCropModal(${slot.slot_id})">
+                        <i data-lucide="crop" style="width:11px; height:11px;"></i> ✂️ Crop / Frame
+                    </button>
+                </div>
+            </div>
+
+            <!-- Keep Original Notice (hidden by default) -->
+            <div id="slot-keep-box-${slot.slot_id}" class="hidden" style="padding:6px 8px; background:rgba(139,92,246,0.12); border-radius:6px; font-size:0.68rem; color:#c4b5fd;">
+                ✓ Preserving original clip from reference edit
+            </div>
+
+            <!-- Fine-Tune Timing Slider -->
+            <div class="slot-timing-box" style="margin-top:6px; padding:6px 8px; background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.07); border-radius:6px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.65rem; color:rgba(255,255,255,0.6); margin-bottom:3px;">
+                    <span>✂️ Adjust Cut Boundaries:</span>
+                    <span id="slot-dur-badge-${slot.slot_id}" style="color:#22d3ee; font-weight:700;">${slot.duration}s</span>
+                </div>
+                <div style="display:flex; align-items:center; gap:6px;">
+                    <div style="display:flex; align-items:center; gap:2px;">
+                        <span style="font-size:0.60rem; color:rgba(255,255,255,0.4);">In</span>
+                        <input type="number" step="0.05" min="0" max="${blueprint.total_duration}" value="${slot.start}" 
+                            id="slot-start-input-${slot.slot_id}" class="slot-num-input"
+                            onchange="updateSlotTiming(${slot.slot_id}, this.value, null)">
+                    </div>
+                    <input type="range" step="0.05" min="${slot.start}" max="${blueprint.total_duration}" value="${slot.end}" 
+                        id="slot-end-slider-${slot.slot_id}" class="slot-range-slider" style="flex:1;"
+                        oninput="updateSlotTiming(${slot.slot_id}, null, this.value)">
+                    <div style="display:flex; align-items:center; gap:2px;">
+                        <span style="font-size:0.60rem; color:rgba(255,255,255,0.4);">Out</span>
+                        <input type="number" step="0.05" min="0" max="${blueprint.total_duration}" value="${slot.end}" 
+                            id="slot-end-input-${slot.slot_id}" class="slot-num-input"
+                            onchange="updateSlotTiming(${slot.slot_id}, null, this.value)">
+                    </div>
+                </div>
+            </div>
+        `;
+
+        const fileInput = slotCard.querySelector(`#slot-input-${slot.slot_id}`);
+        if (fileInput) {
+            fileInput.addEventListener('change', () => {
+                if (fileInput.files.length) {
+                    const f = fileInput.files[0];
+                    templateSlotRawFiles[slot.slot_id] = f;
+                    templateSlotFiles[slot.slot_id] = f;
+                    const labelEl = document.getElementById(`slot-name-${slot.slot_id}`);
+                    if (labelEl) labelEl.textContent = `✓ ${f.name}`;
+                    const cropBtn = document.getElementById(`btn-crop-slot-${slot.slot_id}`);
+                    if (cropBtn) cropBtn.classList.remove('hidden');
+                    if (window.lucide) lucide.createIcons();
+                }
+            });
+        }
+
+        slotsContainer.appendChild(slotCard);
+    });
+
+    // Reveal Depth & Typography Settings Card
+    const depthCard = document.getElementById('template-depth-settings-card');
+    if (depthCard) depthCard.classList.remove('hidden');
+
+    // Clean up any lyrics box if present
+    const existingLyricsBox = document.getElementById('template-lyrics-editor-box');
+    if (existingLyricsBox) existingLyricsBox.remove();
+    editableTemplateLyrics = [];
+
+    if (btnRender) btnRender.classList.remove('hidden');
+}
+
+window.setLayerDepthMode = function(mode) {
+    currentTemplateDepthMode = mode;
+    const btnBehind = document.getElementById('btn-depth-behind');
+    const btnFore = document.getElementById('btn-depth-foreground');
+    if (btnBehind && btnFore) {
+        if (mode === 'behind_subject') {
+            btnBehind.classList.add('active');
+            btnFore.classList.remove('active');
+        } else {
+            btnFore.classList.add('active');
+            btnBehind.classList.remove('active');
+        }
+    }
+};
+
+let currentTemplateEngineMode = 'clone';
+
+window.setTemplateEngineMode = function(mode) {
+    currentTemplateEngineMode = mode;
+    const btnClone = document.getElementById('btn-mode-clone');
+    const btnSynth = document.getElementById('btn-mode-synthetic');
+    
+    if (mode === 'clone') {
+        if (btnClone) btnClone.classList.add('active');
+        if (btnSynth) btnSynth.classList.remove('active');
+    } else {
+        if (btnSynth) btnSynth.classList.add('active');
+        if (btnClone) btnClone.classList.remove('active');
+    }
+};
+
+window.setBackdropMode = function(mode) {
+    currentTemplateBackdropMode = mode;
+    const btnStudio = document.getElementById('btn-backdrop-studio') || document.getElementById('btn-bg-studio');
+    const btnPhoto = document.getElementById('btn-backdrop-photo') || document.getElementById('btn-bg-photo');
+    if (btnStudio && btnPhoto) {
+        if (mode === 'studio_gray') {
+            btnStudio.classList.add('active');
+            btnPhoto.classList.remove('active');
+        } else {
+            btnPhoto.classList.add('active');
+            btnStudio.classList.remove('active');
+        }
+    }
+};
+window.setBackdropStyle = window.setBackdropMode;
+
+window.setTextColorMode = function(color) {
+    currentTemplateTextColor = color;
+    ['white', 'dark', 'neon'].forEach(c => {
+        const btn = document.getElementById(`btn-color-${c}`);
+        if (btn) {
+            if (c === color) btn.classList.add('active');
+            else btn.classList.remove('active');
+        }
+    });
+};
+
+window.setTemplateAnchorMode = function(mode) {
+    currentTemplateAnchorMode = mode;
+    ['smart', 'full', 'torso', 'bottom'].forEach(m => {
+        const btn = document.getElementById(`btn-anchor-${m}`);
+        if (btn) {
+            if (m === mode) btn.classList.add('active');
+            else btn.classList.remove('active');
+        }
+    });
+};
+
+window.updateSubjectScale = function(val) {
+    currentTemplateSubjectScale = Math.max(0.30, Math.min(1.50, parseFloat(val) || 1.0));
+    const slider = document.getElementById('slider-subject-scale');
+    if (slider && Math.abs(parseFloat(slider.value) - currentTemplateSubjectScale) > 0.005) {
+        slider.value = currentTemplateSubjectScale;
+    }
+    const numInput = document.getElementById('input-subject-scale-num');
+    if (numInput && parseInt(numInput.value) !== Math.round(currentTemplateSubjectScale * 100)) {
+        numInput.value = Math.round(currentTemplateSubjectScale * 100);
+    }
+    const lbl = document.getElementById('label-subject-scale');
+    if (lbl) lbl.textContent = `(${currentTemplateSubjectScale.toFixed(2)}x)`;
+    updatePlayerTransformBoxUI();
+};
+
+window.updatePosXOffset = function(val) {
+    currentTemplatePosXOffset = parseInt(val) || 0;
+    const slider = document.getElementById('slider-pos-x');
+    if (slider && parseInt(slider.value) !== currentTemplatePosXOffset) {
+        slider.value = currentTemplatePosXOffset;
+    }
+    const lbl = document.getElementById('label-pos-x');
+    if (lbl) {
+        const prefix = currentTemplatePosXOffset > 0 ? `+${currentTemplatePosXOffset}px (Right)` : currentTemplatePosXOffset < 0 ? `${currentTemplatePosXOffset}px (Left)` : '0px (Auto Centered)';
+        lbl.textContent = prefix;
+    }
+    updatePlayerTransformBoxUI();
+};
+
+window.updatePosYOffset = function(val) {
+    currentTemplatePosYOffset = parseInt(val) || 0;
+    const slider = document.getElementById('slider-pos-y');
+    if (slider && parseInt(slider.value) !== currentTemplatePosYOffset) {
+        slider.value = currentTemplatePosYOffset;
+    }
+    const lbl = document.getElementById('label-pos-y');
+    if (lbl) {
+        const prefix = currentTemplatePosYOffset > 0 ? `+${currentTemplatePosYOffset}px (Down)` : currentTemplatePosYOffset < 0 ? `${currentTemplatePosYOffset}px (Up)` : '0px (Auto Eye-Locked)';
+        lbl.textContent = prefix;
+    }
+    updatePlayerTransformBoxUI();
+};
+
+window.setSubjectScaleMode = function(scale) {
+    currentTemplateSubjectScale = parseFloat(scale);
+    const btnBal = document.getElementById('btn-scale-balanced');
+    const btnFull = document.getElementById('btn-scale-full');
+    if (btnBal && btnFull) {
+        if (currentTemplateSubjectScale < 0.98) {
+            btnBal.classList.add('active');
+            btnFull.classList.remove('active');
+        } else {
+            btnFull.classList.add('active');
+            btnBal.classList.remove('active');
+        }
+    }
+};
+
+window.updateDepthVerticalPos = function(val) {
+    const num = parseFloat(val);
+    currentTemplateVerticalPos = num / 100.0;
+    const slider = document.getElementById('slider-depth-pos');
+    if (slider && parseFloat(slider.value) !== num) {
+        slider.value = num;
+    }
+    const lbl = document.getElementById('label-depth-pos');
+    if (lbl) {
+        let hint = 'Chest / Center - Ref Style';
+        if (currentTemplateVerticalPos <= 0.40) hint = 'Behind Neck';
+        else if (currentTemplateVerticalPos <= 0.46) hint = 'Upper Chest';
+        else if (currentTemplateVerticalPos <= 0.55) hint = 'Chest / Center - Ref Style';
+        else hint = 'Lower Torso';
+        lbl.textContent = `${num.toFixed(1)}% (${hint})`;
+    }
+};
+
+function renderEditableLyricsUI(container) {
+    const existingBox = document.getElementById('template-lyrics-editor-box');
+    if (existingBox) existingBox.remove();
+}
+
+window.updateLyricText = function(id, val) {};
+window.updateLyricTiming = function(id, newStart, newEnd) {};
+window.deleteLyricLine = function(id) {};
+window.addLyricLine = function() {};
+
+window.setSlotMode = function(slotId, mode) {
+    const btnReplace = document.getElementById(`btn-mode-replace-${slotId}`);
+    const btnKeep = document.getElementById(`btn-mode-keep-${slotId}`);
+    const replaceBox = document.getElementById(`slot-replace-box-${slotId}`);
+    const keepBox = document.getElementById(`slot-keep-box-${slotId}`);
+    const fileInput = document.getElementById(`slot-input-${slotId}`);
+
+    if (mode === 'keep') {
+        if (btnKeep) btnKeep.classList.add('active');
+        if (btnReplace) btnReplace.classList.remove('active');
+        if (replaceBox) replaceBox.classList.add('hidden');
+        if (keepBox) keepBox.classList.remove('hidden');
+        templateSlotFiles[slotId] = '__KEEP_ORIGINAL__';
+    } else {
+        if (btnReplace) btnReplace.classList.add('active');
+        if (btnKeep) btnKeep.classList.remove('active');
+        if (replaceBox) replaceBox.classList.remove('hidden');
+        if (keepBox) keepBox.classList.add('hidden');
+        if (fileInput && fileInput.files.length) {
+            templateSlotFiles[slotId] = fileInput.files[0];
+        } else {
+            delete templateSlotFiles[slotId];
+        }
+    }
+};
+
+window.updateSlotTiming = function(slotId, newStart, newEnd) {
+    if (!templateSlotTimings[slotId]) {
+        templateSlotTimings[slotId] = { start: 0, end: 1 };
+    }
+
+    if (newStart !== null && newStart !== undefined) {
+        templateSlotTimings[slotId].start = Math.max(0, parseFloat(newStart) || 0);
+    }
+    if (newEnd !== null && newEnd !== undefined) {
+        templateSlotTimings[slotId].end = Math.max(templateSlotTimings[slotId].start + 0.1, parseFloat(newEnd) || 0);
+    }
+
+    const cur = templateSlotTimings[slotId];
+    const dur = Math.max(0.1, cur.end - cur.start).toFixed(2);
+
+    // Update UI elements
+    const startIn = document.getElementById(`slot-start-input-${slotId}`);
+    const endIn = document.getElementById(`slot-end-input-${slotId}`);
+    const endSlider = document.getElementById(`slot-end-slider-${slotId}`);
+    const badgeEl = document.getElementById(`slot-dur-badge-${slotId}`);
+    const headerDurEl = document.getElementById(`slot-header-dur-${slotId}`);
+
+    if (startIn) startIn.value = cur.start.toFixed(2);
+    if (endIn) endIn.value = cur.end.toFixed(2);
+    if (endSlider) endSlider.value = cur.end;
+    if (badgeEl) badgeEl.textContent = `${dur}s`;
+    if (headerDurEl) headerDurEl.textContent = `${dur}s`;
+};
+
+async function renderTemplateEdit() {
+    if (!currentTemplateBlueprint) {
+        alert('Please extract a template first.');
+        return;
+    }
+
+    const btnRender = document.getElementById('btn-render-template');
+    btnRender.disabled = true;
+    btnRender.innerHTML = '<i data-lucide="loader"></i> Compiling Template Edit...';
+    if (window.lucide) lucide.createIcons();
+
+    const formData = new FormData();
+    const placeholders = currentTemplateBlueprint.placeholders || [];
+
+    // Ensure every slot has a value (either user file or __KEEP_ORIGINAL__)
+    placeholders.forEach(slot => {
+        const sid = slot.slot_id;
+        const val = templateSlotFiles[sid];
+        if (val instanceof File) {
+            formData.append(`slot_${sid}`, val);
+        } else {
+            formData.append(`slot_${sid}`, '__KEEP_ORIGINAL__');
+        }
+    });
+
+    // Send custom adjusted timing values from the sliders
+    formData.append('custom_timings_json', JSON.stringify(templateSlotTimings));
+
+    // Send 3D depth and layout options
+    formData.append('layer_depth', currentTemplateDepthMode);
+    formData.append('vertical_pos', currentTemplateVerticalPos.toString());
+    formData.append('backdrop_style', currentTemplateBackdropMode);
+    formData.append('text_color', currentTemplateTextColor);
+    formData.append('subject_scale', currentTemplateSubjectScale.toString());
+    formData.append('anchor_mode', currentTemplateAnchorMode);
+    formData.append('pos_x_offset', currentTemplatePosXOffset.toString());
+    formData.append('pos_y_offset', currentTemplatePosYOffset.toString());
+    const transType = (currentTemplateBlueprint && currentTemplateBlueprint.caption_style && currentTemplateBlueprint.caption_style.transition) ? currentTemplateBlueprint.caption_style.transition : 'cut';
+    formData.append('transition_type', transType);
+    formData.append('edit_mode', currentTemplateEngineMode);
+    formData.append('aspect_ratio', currentPlayerAspectMode);
+
+    setSystemStatus('running', 'Rendering Template Edit... 0%');
+    playerRenderingSpinner.classList.remove('hidden');
+    updateRenderProgress(0, 'Initializing Neural Models', 'Preparing assets & hardware acceleration');
+
+    appendLog('System', 'Pipeline Manager', 'Initializing Multi-Model Template Synthesis Engine...', 'INFO');
+
+    try {
+        const res = await fetch('/api/template/render', {
+            method: 'POST',
+            body: formData
+        });
+        const data = await res.json();
+        if (data.status === 'success') {
+            startTemplateRenderStream();
+        } else {
+            alert('Template compilation initiation failed: ' + (data.detail || data.message));
+            setSystemStatus('error', 'Compilation Error');
+            playerRenderingSpinner.classList.add('hidden');
+            btnRender.disabled = false;
+            btnRender.innerHTML = '<i data-lucide="play-circle"></i> Render Template Edit';
+            if (window.lucide) lucide.createIcons();
+        }
+    } catch (e) {
+        alert('Template render request failed: ' + e.message);
+        setSystemStatus('error', 'Network Error');
+        playerRenderingSpinner.classList.add('hidden');
+        btnRender.disabled = false;
+        btnRender.innerHTML = '<i data-lucide="play-circle"></i> Render Template Edit';
+        if (window.lucide) lucide.createIcons();
+    }
+}
+
+function startTemplateRenderStream() {
+    if (currentTemplateEventSource) {
+        currentTemplateEventSource.close();
+    }
+
+    const btnRender = document.getElementById('btn-render-template');
+    currentTemplateEventSource = new EventSource('/api/template/stream-render');
+
+    currentTemplateEventSource.onmessage = (event) => {
+        const log = JSON.parse(event.data);
+
+        // Update progress if present
+        if (log.progress !== undefined && log.progress !== null) {
+            let detail = log.message;
+            const matchFrames = log.message.match(/\((\d+\/\d+ frames)\)/);
+            if (matchFrames) detail = matchFrames[1];
+            updateRenderProgress(log.progress, log.agent || 'Rendering', detail);
+        }
+
+        // Handle core system triggers
+        if (log.message === 'TEMPLATE_COMPILE_SUCCESSFUL') {
+            currentTemplateEventSource.close();
+            updateRenderProgress(100, 'Render Complete', 'Finished 100%');
+
+            const videoUrl = `/static/edited_output.mp4?cb=${Date.now()}`;
+            mainVideoPlayer.src = videoUrl;
+            mainVideoPlayer.load();
+            try { mainVideoPlayer.play(); } catch(e) {}
+
+            setSystemStatus('success', 'Template Edit Complete!');
+            setTimeout(() => {
+                playerRenderingSpinner.classList.add('hidden');
+                const tplCard = document.getElementById('template-render-progress-card');
+                if (tplCard) tplCard.classList.add('hidden');
+            }, 1200);
+
+            // Show the result card & direct download button
+            const resultCard = document.getElementById('template-result-card');
+            const downloadBtn = document.getElementById('btn-download-template-video');
+            if (resultCard) resultCard.classList.remove('hidden');
+            if (downloadBtn) downloadBtn.href = videoUrl;
+            if (window.lucide) lucide.createIcons();
+
+            appendLog('System', 'Pipeline Manager', '3D Depth template edit compiled successfully! Ready to preview & download.', 'SUCCESS');
+
+            if (btnRender) {
+                btnRender.disabled = false;
+                btnRender.innerHTML = '<i data-lucide="play-circle"></i> Render Template Edit';
+                if (window.lucide) lucide.createIcons();
+            }
+
+            // Scroll to preview player
+            const previewSection = document.querySelector('.panel-preview');
+            if (previewSection) {
+                previewSection.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            }
+            return;
+        }
+
+        if (log.level === 'ERROR') {
+            currentTemplateEventSource.close();
+            setSystemStatus('idle', 'Error');
+            appendLog(log.agent, log.role, log.message, log.level);
+            playerRenderingSpinner.classList.add('hidden');
+            if (btnRender) {
+                btnRender.disabled = false;
+                btnRender.innerHTML = '<i data-lucide="play-circle"></i> Render Template Edit';
+                if (window.lucide) lucide.createIcons();
+            }
+            alert('Template render error: ' + log.message);
+            return;
+        }
+
+        appendLog(log.agent, log.role, log.message, log.level);
+        updateAgentUI(log.agent, log.level, log.message);
+    };
+
+    currentTemplateEventSource.onerror = (e) => {
+        console.warn('Template SSE connection closed or reconnecting...', e);
+    };
+}
+
+window.focusTemplateAdjustments = function() {
+    // Switch to Template tab
+    const tabBtnTemplate = document.getElementById('tab-btn-template');
+    if (tabBtnTemplate) tabBtnTemplate.click();
+    
+    // Scroll smoothly to the slots container
+    const slotsEl = document.getElementById('template-slots-container');
+    if (slotsEl) {
+        slotsEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+};
+
+// ==========================================
+// INTERACTIVE PHOTO CROP & FRAMING MODAL
+// ==========================================
+let currentCropSlotId = null;
+let currentCropImage = null;
+let currentCropOriginalFile = null;
+let cropState = {
+    imgX: 0,
+    imgY: 0,
+    imgW: 0,
+    imgH: 0,
+    cropX: 0,
+    cropY: 0,
+    cropW: 0,
+    cropH: 0,
+    aspectRatio: 'free',
+    isDragging: false,
+    dragMode: null,
+    startX: 0,
+    startY: 0,
+    initCrop: {}
+};
+
+function setupPhotoCropModal() {
+    const canvas = document.getElementById('photo-crop-canvas');
+    if (!canvas) return;
+
+    canvas.addEventListener('mousedown', onCropMouseDown);
+    window.addEventListener('mousemove', onCropMouseMove);
+    window.addEventListener('mouseup', onCropMouseUp);
+
+    // Touch support for mobile/tablets
+    canvas.addEventListener('touchstart', (e) => {
+        if (e.touches.length === 1) {
+            const touch = e.touches[0];
+            onCropMouseDown({ clientX: touch.clientX, clientY: touch.clientY, preventDefault: () => e.preventDefault() });
+        }
+    }, { passive: false });
+    window.addEventListener('touchmove', (e) => {
+        if (cropState.isDragging && e.touches.length === 1) {
+            const touch = e.touches[0];
+            onCropMouseMove({ clientX: touch.clientX, clientY: touch.clientY });
+        }
+    }, { passive: false });
+    window.addEventListener('touchend', onCropMouseUp);
+}
+
+window.openPhotoCropModal = function(slotId) {
+    currentCropSlotId = slotId;
+    const file = templateSlotRawFiles[slotId] || templateSlotFiles[slotId];
+    if (!file || !(file instanceof File)) {
+        alert('Please select a photo for this slot first.');
+        return;
+    }
+    currentCropOriginalFile = file;
+
+    const modal = document.getElementById('photo-crop-modal');
+    if (modal) modal.classList.remove('hidden');
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+            currentCropImage = img;
+            initCropCanvas(img);
+        };
+        img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+};
+
+window.closePhotoCropModal = function() {
+    const modal = document.getElementById('photo-crop-modal');
+    if (modal) modal.classList.add('hidden');
+    currentCropImage = null;
+    cropState.isDragging = false;
+};
+
+function initCropCanvas(img) {
+    const canvas = document.getElementById('photo-crop-canvas');
+    const wrapper = document.getElementById('crop-canvas-wrapper');
+    if (!canvas || !wrapper) return;
+
+    const maxW = wrapper.clientWidth - 24 || 640;
+    const maxH = wrapper.clientHeight - 24 || 380;
+
+    const imgAspect = img.width / img.height;
+    let dispW = maxW;
+    let dispH = maxW / imgAspect;
+    if (dispH > maxH) {
+        dispH = maxH;
+        dispW = maxH * imgAspect;
+    }
+
+    canvas.width = Math.round(dispW);
+    canvas.height = Math.round(dispH);
+
+    cropState.imgX = 0;
+    cropState.imgY = 0;
+    cropState.imgW = canvas.width;
+    cropState.imgH = canvas.height;
+
+    // Default crop box: centered 85% of image
+    const initialAspect = cropState.aspectRatio === 'free' ? null : cropState.aspectRatio;
+    if (initialAspect) {
+        let cw = cropState.imgW * 0.85;
+        let ch = cw / initialAspect;
+        if (ch > cropState.imgH * 0.90) {
+            ch = cropState.imgH * 0.90;
+            cw = ch * initialAspect;
+        }
+        cropState.cropW = Math.round(cw);
+        cropState.cropH = Math.round(ch);
+    } else {
+        cropState.cropW = Math.round(cropState.imgW * 0.85);
+        cropState.cropH = Math.round(cropState.imgH * 0.85);
+    }
+    cropState.cropX = Math.round((cropState.imgW - cropState.cropW) / 2);
+    cropState.cropY = Math.round((cropState.imgH - cropState.cropH) / 2);
+
+    drawCropCanvas();
+}
+
+window.setCropAspectRatio = function(ratio) {
+    cropState.aspectRatio = ratio;
+    ['free', '916', '11', '45', 'orig'].forEach(r => {
+        const btn = document.getElementById('btn-crop-ratio-' + r);
+        if (btn) btn.classList.remove('active');
+    });
+
+    let targetRatio = null;
+    if (ratio === 9/16) {
+        targetRatio = 9/16;
+        const b = document.getElementById('btn-crop-ratio-916');
+        if (b) b.classList.add('active');
+    } else if (ratio === 1/1) {
+        targetRatio = 1/1;
+        const b = document.getElementById('btn-crop-ratio-11');
+        if (b) b.classList.add('active');
+    } else if (ratio === 4/5) {
+        targetRatio = 4/5;
+        const b = document.getElementById('btn-crop-ratio-45');
+        if (b) b.classList.add('active');
+    } else if (ratio === 'orig' && currentCropImage) {
+        targetRatio = currentCropImage.width / currentCropImage.height;
+        const b = document.getElementById('btn-crop-ratio-orig');
+        if (b) b.classList.add('active');
+    } else {
+        const b = document.getElementById('btn-crop-ratio-free');
+        if (b) b.classList.add('active');
+    }
+
+    if (targetRatio) {
+        let newW = cropState.cropW;
+        let newH = newW / targetRatio;
+        if (newH > cropState.imgH) {
+            newH = cropState.imgH * 0.9;
+            newW = newH * targetRatio;
+        }
+        cropState.cropW = Math.round(newW);
+        cropState.cropH = Math.round(newH);
+        cropState.cropX = Math.max(0, Math.min(cropState.imgW - cropState.cropW, cropState.cropX));
+        cropState.cropY = Math.max(0, Math.min(cropState.imgH - cropState.cropH, cropState.cropY));
+    }
+    drawCropCanvas();
+};
+
+function drawCropCanvas() {
+    const canvas = document.getElementById('photo-crop-canvas');
+    if (!canvas || !currentCropImage) return;
+    const ctx = canvas.getContext('2d');
+
+    // 1. Draw base image
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(currentCropImage, 0, 0, canvas.width, canvas.height);
+
+    // 2. Dark overlay outside crop box
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.65)';
+    ctx.fillRect(0, 0, canvas.width, cropState.cropY);
+    ctx.fillRect(0, cropState.cropY + cropState.cropH, canvas.width, canvas.height - (cropState.cropY + cropState.cropH));
+    ctx.fillRect(0, cropState.cropY, cropState.cropX, cropState.cropH);
+    ctx.fillRect(cropState.cropX + cropState.cropW, cropState.cropY, canvas.width - (cropState.cropX + cropState.cropW), cropState.cropH);
+
+    // 3. Crop box border & rule-of-thirds grid
+    ctx.strokeStyle = '#22d3ee';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(cropState.cropX, cropState.cropY, cropState.cropW, cropState.cropH);
+
+    ctx.strokeStyle = 'rgba(34, 211, 238, 0.25)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(cropState.cropX, cropState.cropY + cropState.cropH / 3);
+    ctx.lineTo(cropState.cropX + cropState.cropW, cropState.cropY + cropState.cropH / 3);
+    ctx.moveTo(cropState.cropX, cropState.cropY + (cropState.cropH * 2) / 3);
+    ctx.lineTo(cropState.cropX + cropState.cropW, cropState.cropY + (cropState.cropH * 2) / 3);
+    ctx.moveTo(cropState.cropX + cropState.cropW / 3, cropState.cropY);
+    ctx.lineTo(cropState.cropX + cropState.cropW / 3, cropState.cropY + cropState.cropH);
+    ctx.moveTo(cropState.cropX + (cropState.cropW * 2) / 3, cropState.cropY);
+    ctx.lineTo(cropState.cropX + (cropState.cropW * 2) / 3, cropState.cropY + cropState.cropH);
+    ctx.stroke();
+
+    // 4. Corner Handles
+    const handleSize = 10;
+    ctx.fillStyle = '#22d3ee';
+    const corners = [
+        [cropState.cropX, cropState.cropY],
+        [cropState.cropX + cropState.cropW, cropState.cropY],
+        [cropState.cropX, cropState.cropY + cropState.cropH],
+        [cropState.cropX + cropState.cropW, cropState.cropY + cropState.cropH]
+    ];
+    corners.forEach(([cx, cy]) => {
+        ctx.fillRect(cx - handleSize / 2, cy - handleSize / 2, handleSize, handleSize);
+        ctx.strokeStyle = '#fff';
+        ctx.lineWidth = 1.5;
+        ctx.strokeRect(cx - handleSize / 2, cy - handleSize / 2, handleSize, handleSize);
+    });
+
+    // 5. Update dimension readout
+    const scale = currentCropImage.width / canvas.width;
+    const realW = Math.round(cropState.cropW * scale);
+    const realH = Math.round(cropState.cropH * scale);
+    const dimLabel = document.getElementById('crop-dimensions-label');
+    if (dimLabel) {
+        dimLabel.textContent = `${realW} × ${realH} px (${(realW / realH).toFixed(2)})`;
+    }
+}
+
+function getCropPointerPos(e) {
+    const canvas = document.getElementById('photo-crop-canvas');
+    if (!canvas) return { x: 0, y: 0 };
+    const rect = canvas.getBoundingClientRect();
+    return {
+        x: e.clientX - rect.left,
+        y: e.clientY - rect.top
+    };
+}
+
+function onCropMouseDown(e) {
+    if (!currentCropImage) return;
+    const pos = getCropPointerPos(e);
+    const hitTolerance = 18;
+    const { cropX, cropY, cropW, cropH } = cropState;
+
+    let mode = null;
+    if (Math.hypot(pos.x - cropX, pos.y - cropY) <= hitTolerance) mode = 'nw';
+    else if (Math.hypot(pos.x - (cropX + cropW), pos.y - cropY) <= hitTolerance) mode = 'ne';
+    else if (Math.hypot(pos.x - cropX, pos.y - (cropY + cropH)) <= hitTolerance) mode = 'sw';
+    else if (Math.hypot(pos.x - (cropX + cropW), pos.y - (cropY + cropH)) <= hitTolerance) mode = 'se';
+    else if (pos.x >= cropX && pos.x <= cropX + cropW && pos.y >= cropY && pos.y <= cropY + cropH) mode = 'move';
+
+    if (mode) {
+        if (e.preventDefault) e.preventDefault();
+        cropState.isDragging = true;
+        cropState.dragMode = mode;
+        cropState.startX = pos.x;
+        cropState.startY = pos.y;
+        cropState.initCrop = { cropX, cropY, cropW, cropH };
+    }
+}
+
+function onCropMouseMove(e) {
+    if (!cropState.isDragging || !currentCropImage) return;
+    const pos = getCropPointerPos(e);
+    const dx = pos.x - cropState.startX;
+    const dy = pos.y - cropState.startY;
+    const init = cropState.initCrop;
+    const canvas = document.getElementById('photo-crop-canvas');
+
+    if (cropState.dragMode === 'move') {
+        cropState.cropX = Math.max(0, Math.min(canvas.width - init.cropW, init.cropX + dx));
+        cropState.cropY = Math.max(0, Math.min(canvas.height - init.cropH, init.cropY + dy));
+    } else if (cropState.dragMode === 'se') {
+        let newW = Math.max(40, Math.min(canvas.width - init.cropX, init.cropW + dx));
+        let newH = Math.max(40, Math.min(canvas.height - init.cropY, init.cropH + dy));
+        if (cropState.aspectRatio !== 'free' && cropState.aspectRatio) {
+            newH = newW / cropState.aspectRatio;
+            if (init.cropY + newH > canvas.height) {
+                newH = canvas.height - init.cropY;
+                newW = newH * cropState.aspectRatio;
+            }
+        }
+        cropState.cropW = Math.round(newW);
+        cropState.cropH = Math.round(newH);
+    } else if (cropState.dragMode === 'nw') {
+        let newW = Math.max(40, init.cropW - dx);
+        let newH = Math.max(40, init.cropH - dy);
+        let newX = init.cropX + (init.cropW - newW);
+        let newY = init.cropY + (init.cropH - newH);
+        if (newX < 0) { newW += newX; newX = 0; }
+        if (newY < 0) { newH += newY; newY = 0; }
+        cropState.cropX = Math.round(newX);
+        cropState.cropY = Math.round(newY);
+        cropState.cropW = Math.round(newW);
+        cropState.cropH = Math.round(newH);
+    }
+    drawCropCanvas();
+}
+
+function onCropMouseUp() {
+    cropState.isDragging = false;
+    cropState.dragMode = null;
+}
+
+window.applyPhotoCrop = function() {
+    if (!currentCropImage || currentCropSlotId === null) return;
+    const canvas = document.getElementById('photo-crop-canvas');
+    if (!canvas) return;
+
+    const scale = currentCropImage.width / canvas.width;
+    const srcX = Math.round(cropState.cropX * scale);
+    const srcY = Math.round(cropState.cropY * scale);
+    const srcW = Math.round(cropState.cropW * scale);
+    const srcH = Math.round(cropState.cropH * scale);
+
+    const offscreen = document.createElement('canvas');
+    offscreen.width = srcW;
+    offscreen.height = srcH;
+    const ctx = offscreen.getContext('2d');
+    ctx.drawImage(currentCropImage, srcX, srcY, srcW, srcH, 0, 0, srcW, srcH);
+
+    offscreen.toBlob((blob) => {
+        if (!blob) return;
+        const origName = (currentCropOriginalFile && currentCropOriginalFile.name) ? currentCropOriginalFile.name : 'photo.png';
+        const croppedFile = new File([blob], `cropped_${origName}`, { type: 'image/png' });
+        templateSlotFiles[currentCropSlotId] = croppedFile;
+
+        const labelEl = document.getElementById(`slot-name-${currentCropSlotId}`);
+        if (labelEl) {
+            labelEl.textContent = `✂️ Cropped (${srcW}×${srcH}px)`;
+            labelEl.style.color = '#22d3ee';
+        }
+
+        closePhotoCropModal();
+    }, 'image/png');
+};
+
+window.resetCropToOriginal = function() {
+    if (currentCropSlotId === null || !currentCropOriginalFile) return;
+    templateSlotFiles[currentCropSlotId] = currentCropOriginalFile;
+    const labelEl = document.getElementById(`slot-name-${currentCropSlotId}`);
+    if (labelEl) {
+        labelEl.textContent = `✓ ${currentCropOriginalFile.name}`;
+        labelEl.style.color = '#a78bfa';
+    }
+    closePhotoCropModal();
+};
+
+// ==========================================
+// ON-PLAYER INTERACTIVE TRANSFORM BOX
+// ==========================================
+let isTransformBoxActive = false;
+let isTransformDragging = false;
+let transformDragMode = null;
+let transformStartX = 0;
+let transformStartY = 0;
+let transformInitScale = 1.0;
+let transformInitX = 0;
+let transformInitY = 0;
+
+function setupPlayerTransformBox() {
+    const box = document.getElementById('player-transform-box');
+    if (!box) return;
+
+    box.addEventListener('mousedown', (e) => {
+        const handle = e.target.closest('.transform-handle');
+        if (handle) {
+            transformDragMode = handle.dataset.corner || 'br';
+        } else {
+            transformDragMode = 'move';
+        }
+        isTransformDragging = true;
+        transformStartX = e.clientX;
+        transformStartY = e.clientY;
+        transformInitScale = currentTemplateSubjectScale;
+        transformInitX = currentTemplatePosXOffset;
+        transformInitY = currentTemplatePosYOffset;
+        e.preventDefault();
+        e.stopPropagation();
+    });
+
+    window.addEventListener('mousemove', (e) => {
+        if (!isTransformDragging) return;
+        const dx = e.clientX - transformStartX;
+        const dy = e.clientY - transformStartY;
+
+        if (transformDragMode === 'move') {
+            const newX = Math.round(transformInitX + dx);
+            const newY = Math.round(transformInitY + dy);
+            updatePosXOffset(newX);
+            updatePosYOffset(newY);
+        } else {
+            const dist = (dx - dy) / 250.0;
+            const newScale = Math.max(0.30, Math.min(1.50, transformInitScale + dist));
+            updateSubjectScale(newScale);
+        }
+    });
+
+    window.addEventListener('mouseup', () => {
+        isTransformDragging = false;
+        transformDragMode = null;
+    });
+}
+
+window.togglePlayerTransformBox = function() {
+    isTransformBoxActive = !isTransformBoxActive;
+    const box = document.getElementById('player-transform-box');
+    const btn = document.getElementById('btn-toggle-transform-box');
+    if (box) {
+        if (isTransformBoxActive) {
+            box.classList.remove('hidden');
+            if (btn) btn.classList.add('active');
+            updatePlayerTransformBoxUI();
+        } else {
+            box.classList.add('hidden');
+            if (btn) btn.classList.remove('active');
+        }
+    }
+};
+
+function updatePlayerTransformBoxUI() {
+    const box = document.getElementById('player-transform-box');
+    const playerContainer = document.getElementById('player-container');
+    if (!box || !playerContainer || box.classList.contains('hidden')) return;
+
+    const pw = playerContainer.clientWidth;
+    const ph = playerContainer.clientHeight;
+
+    const boxW = Math.round(pw * 0.28 * currentTemplateSubjectScale);
+    const boxH = Math.round(ph * 0.70 * currentTemplateSubjectScale);
+
+    const centerX = (pw / 2) + currentTemplatePosXOffset;
+    const centerY = (ph / 2) + currentTemplatePosYOffset;
+
+    const left = Math.round(centerX - (boxW / 2));
+    const top = Math.round(centerY - (boxH / 2));
+
+    box.style.left = `${left}px`;
+    box.style.top = `${top}px`;
+    box.style.width = `${boxW}px`;
+    box.style.height = `${boxH}px`;
+
+    const badge = document.getElementById('transform-badge');
+    if (badge) {
+        badge.textContent = `Size: ${Math.round(currentTemplateSubjectScale * 100)}% | Pos: (${currentTemplatePosXOffset}, ${currentTemplatePosYOffset})`;
+    }
 }
 
 // Window Onload triggers

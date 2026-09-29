@@ -1,6 +1,7 @@
 import os
 import json
 import asyncio
+import time
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Header, Request
 from fastapi.responses import StreamingResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
@@ -13,6 +14,8 @@ load_dotenv()
 # Import our custom agents and editor pipeline
 from agents import run_agent_workflow, classify_vibe, get_remaining_gemini_credits
 from editor_pipeline import assemble_edit
+from template_engine import extract_template_from_video, compile_template_edit
+import local_vision_engine as lve
 
 app = FastAPI(title="Agentic AI Video Editor Backend")
 
@@ -63,6 +66,11 @@ job_state = {
     "music_config": [],
     "sfx_config": [],
     "ai_credits": 5
+}
+
+template_job_state = {
+    "status": "idle",
+    "params": {}
 }
 
 def clear_compiled_and_plan_files():
@@ -132,20 +140,48 @@ for name, url in library_assets.items():
         except Exception as e:
             print(f"Failed to pre-download asset {name}: {e}")
 
-# Mount the static directory so the HTML/CSS/JS frontend and output video files are served
-app.mount("/static", StaticFiles(directory="static"), name="static")
+# PyInstaller base path resolution
+import sys
+from fastapi.responses import FileResponse, HTMLResponse
 
-from fastapi.responses import HTMLResponse
+BASE_DIR = getattr(sys, '_MEIPASS', os.path.dirname(os.path.abspath(__file__)))
+
+def resolve_path(rel_path: str) -> str:
+    local_path = os.path.abspath(rel_path)
+    if os.path.exists(local_path):
+        return local_path
+    bundled_path = os.path.join(BASE_DIR, rel_path)
+    if os.path.exists(bundled_path):
+        return bundled_path
+    return local_path
+
+@app.get("/static/{file_path:path}")
+async def serve_static(file_path: str):
+    local_file = os.path.join("static", file_path)
+    if os.path.isfile(local_file):
+        return FileResponse(local_file)
+    bundled_file = os.path.join(BASE_DIR, "static", file_path)
+    if os.path.isfile(bundled_file):
+        return FileResponse(bundled_file)
+    raise HTTPException(status_code=404, detail="Static file not found")
 
 @app.get("/", response_class=HTMLResponse)
 async def get_landing_page():
-    with open("index.html", encoding="utf-8") as f:
-        return f.read()
+    for p in ["index.html", "static/index.html"]:
+        resolved = resolve_path(p)
+        if os.path.exists(resolved):
+            with open(resolved, encoding="utf-8") as f:
+                return f.read()
+    raise HTTPException(status_code=404, detail="Landing page index.html not found")
 
 @app.get("/dashboard", response_class=HTMLResponse)
 async def get_dashboard():
-    with open("static/index.html", encoding="utf-8") as f:
-        return f.read()
+    for p in ["static/index.html", "index.html"]:
+        resolved = resolve_path(p)
+        if os.path.exists(resolved):
+            with open(resolved, encoding="utf-8") as f:
+                return f.read()
+    raise HTTPException(status_code=404, detail="Dashboard index.html not found")
 
 @app.post("/api/upload")
 async def upload_files(
@@ -510,6 +546,691 @@ async def reprompt_job(payload: dict):
         "message": f"Reprompt accepted. Re-running agents with new instructions.",
         "data": {"vibe": vibe, "missing_item": missing_item}
     }
+
+@app.get("/api/template/model-status")
+async def get_template_model_status():
+    """
+    Returns current local AI vision engine status, installed models, and download progress.
+    """
+    try:
+        status = lve.check_vision_model_status()
+        return {"status": "success", "data": status}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+@app.post("/api/template/model-download")
+async def trigger_template_model_download(request: Request):
+    """
+    Triggers one-click background download of local vision model (e.g. moondream).
+    """
+    try:
+        body = await request.json()
+        model_name = body.get("model", "moondream")
+    except Exception:
+        model_name = "moondream"
+    
+    res = lve.trigger_ollama_pull(model_name)
+    return {"status": "success", "result": res}
+
+@app.get("/api/template/model-download-progress")
+async def get_template_model_download_progress():
+    """
+    Returns real-time download percentage and status for frontend progress bar.
+    """
+    return {"status": "success", "state": lve.DOWNLOAD_STATE}
+
+@app.post("/api/template/extract")
+async def extract_template(template_video: UploadFile = File(...)):
+    """
+    Extracts a Template Blueprint from an uploaded reference edit video.
+    Returns placeholder slots, durations, background audio, and extracted color filter label.
+    """
+    if not template_video:
+        raise HTTPException(status_code=400, detail="No template video file provided.")
+    
+    os.makedirs("static/uploads", exist_ok=True)
+    temp_path = os.path.join("static", "uploads", f"template_ref_{template_video.filename}")
+    with open(temp_path, "wb") as f:
+        content = await template_video.read()
+        f.write(content)
+        
+    try:
+        blueprint = extract_template_from_video(temp_path, output_dir="static")
+        return {
+            "status": "success",
+            "message": "Template blueprint extracted successfully.",
+            "blueprint": blueprint
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to extract template: {str(e)}")
+
+@app.post("/api/template/render")
+async def render_template(request: Request):
+    """
+    Renders an edit from a Template Blueprint using user-uploaded files for each slot.
+    """
+    form_data = await request.form()
+    os.makedirs("static/uploads", exist_ok=True)
+    
+    blueprint_path = "static/template_blueprint.json"
+    if not os.path.exists(blueprint_path):
+        raise HTTPException(status_code=400, detail="No template blueprint found. Please extract a template first.")
+        
+    slot_assets = {}
+    for key, value in form_data.items():
+        if key.startswith("slot_"):
+            slot_num = key.replace("slot_", "")
+            if hasattr(value, "filename") and value.filename:
+                file_obj = value
+                save_name = f"template_{key}_{file_obj.filename}"
+                save_path = os.path.join("static", "uploads", save_name)
+                with open(save_path, "wb") as f:
+                    content = await file_obj.read()
+                    f.write(content)
+                slot_assets[slot_num] = f"uploads/{save_name}"
+            elif str(value) == "__KEEP_ORIGINAL__" or str(value) == "keep_original":
+                slot_assets[slot_num] = "__KEEP_ORIGINAL__"
+
+    custom_timings = None
+    custom_timings_raw = form_data.get("custom_timings_json")
+    if custom_timings_raw:
+        try:
+            custom_timings = json.loads(custom_timings_raw)
+        except Exception:
+            custom_timings = None
+
+    custom_lyrics = None
+    custom_lyrics_raw = form_data.get("custom_lyrics_json")
+    if custom_lyrics_raw:
+        try:
+            custom_lyrics = json.loads(custom_lyrics_raw)
+        except Exception:
+            custom_lyrics = None
+
+    layer_depth = str(form_data.get("layer_depth", "auto"))
+    try:
+        vertical_pos = float(form_data.get("vertical_pos", 0.50))
+    except Exception:
+        vertical_pos = 0.50
+    backdrop_style = str(form_data.get("backdrop_style", "studio_gray"))
+    text_color = str(form_data.get("text_color", "white"))
+    try:
+        subject_scale = float(form_data.get("subject_scale", 1.0))
+    except Exception:
+        subject_scale = 1.0
+
+    anchor_mode = str(form_data.get("anchor_mode", "smart"))
+    try:
+        pos_x_offset = int(float(form_data.get("pos_x_offset", 0)))
+    except Exception:
+        pos_x_offset = 0
+    try:
+        pos_y_offset = int(float(form_data.get("pos_y_offset", 0)))
+    except Exception:
+        pos_y_offset = 0
+
+    transition_type = form_data.get("transition_type", None)
+    edit_mode = str(form_data.get("edit_mode", "clone"))
+    aspect_ratio = str(form_data.get("aspect_ratio", "auto"))
+
+    render_params = {
+        "slot_assets": slot_assets,
+        "blueprint_path": blueprint_path,
+        "custom_timings": custom_timings,
+        "custom_lyrics": custom_lyrics,
+        "layer_depth": layer_depth,
+        "vertical_pos": vertical_pos,
+        "backdrop_style": backdrop_style,
+        "text_color": text_color,
+        "subject_scale": subject_scale,
+        "anchor_mode": anchor_mode,
+        "pos_x_offset": pos_x_offset,
+        "pos_y_offset": pos_y_offset,
+        "brightness_offset": 0,
+        "contrast_factor": 1.0,
+        "feather_radius": 9,
+        "clean_text_overlay": False,
+        "color_profile": "black_and_white",
+        "transition_type": transition_type,
+        "edit_mode": edit_mode,
+        "aspect_ratio": aspect_ratio
+    }
+
+    template_job_state["params"] = render_params
+    template_job_state["status"] = "ready"
+
+    try:
+        with open("static/template_supervisor_state.json", "w", encoding="utf-8") as f:
+            json.dump(render_params, f, indent=2)
+    except Exception:
+        pass
+
+    # If client explicitly asked for synchronous execution (e.g. backend tests)
+    if request.query_params.get("sync") == "true":
+        loop = asyncio.get_event_loop()
+        try:
+            out_path = await loop.run_in_executor(
+                None,
+                lambda: compile_template_edit(
+                    blueprint_path,
+                    slot_assets,
+                    output_dir="static",
+                    custom_timings=custom_timings,
+                    custom_lyrics=custom_lyrics,
+                    layer_depth=layer_depth,
+                    vertical_pos=vertical_pos,
+                    backdrop_style=backdrop_style,
+                    text_color=text_color,
+                    subject_scale=subject_scale,
+                    anchor_mode=anchor_mode,
+                    pos_x_offset=pos_x_offset,
+                    pos_y_offset=pos_y_offset,
+                    transition_type=transition_type,
+                    edit_mode=edit_mode,
+                    aspect_ratio=aspect_ratio
+                )
+            )
+            return {
+                "status": "success",
+                "message": "Template edit compiled successfully.",
+                "video_url": "/static/edited_output.mp4"
+            }
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Failed to render template edit: {str(e)}")
+
+    # Default: Return immediately so frontend can open SSE stream for live agent logs and progress bar
+    return {
+        "status": "success",
+        "message": "Template render job queued successfully. Connect to /api/template/stream-render for live logs.",
+        "job_id": "template_render_active",
+        "stream_url": "/api/template/stream-render"
+    }
+
+@app.get("/api/template/stream-render")
+async def stream_template_render():
+    """
+    Server-Sent Events (SSE) endpoint to stream real-time logs and rendering progress
+    from the multi-model template synthesis engine.
+    """
+    import queue
+    import threading
+
+    log_queue = queue.Queue()
+
+    def sse_log_cb(agent, role, message, level="INFO", progress=None):
+        log_queue.put({
+            "agent": agent,
+            "role": role,
+            "message": message,
+            "level": level,
+            "progress": progress
+        })
+
+    params = template_job_state.get("params") or {}
+    if not params and os.path.exists("static/template_supervisor_state.json"):
+        try:
+            with open("static/template_supervisor_state.json", "r", encoding="utf-8") as f:
+                params = json.load(f)
+        except Exception:
+            params = {}
+
+    if not params:
+        async def err_gen():
+            yield f"data: {json.dumps({'agent': 'System', 'role': 'Server', 'message': 'No template render job queued. Please configure template slots first.', 'level': 'ERROR'})}\n\n"
+        return StreamingResponse(err_gen(), media_type="text/event-stream")
+
+    def run_worker():
+        try:
+            blueprint_path = params.get("blueprint_path", "static/template_blueprint.json")
+            slot_assets = params.get("slot_assets", {})
+            out_path = compile_template_edit(
+                blueprint_path=blueprint_path,
+                slot_assets=slot_assets,
+                output_dir="static",
+                custom_timings=params.get("custom_timings"),
+                custom_lyrics=params.get("custom_lyrics"),
+                layer_depth=params.get("layer_depth", "background"),
+                vertical_pos=params.get("vertical_pos", 0.50),
+                backdrop_style=params.get("backdrop_style", "studio_gray"),
+                text_color=params.get("text_color", "white"),
+                subject_scale=params.get("subject_scale", 1.0),
+                anchor_mode=params.get("anchor_mode", "smart"),
+                pos_x_offset=params.get("pos_x_offset", 0),
+                pos_y_offset=params.get("pos_y_offset", 0),
+                brightness_offset=params.get("brightness_offset", 0),
+                contrast_factor=params.get("contrast_factor", 1.0),
+                feather_radius=params.get("feather_radius", 9),
+                clean_text_overlay=params.get("clean_text_overlay", False),
+                color_profile=params.get("color_profile", "black_and_white"),
+                transition_type=params.get("transition_type"),
+                edit_mode=params.get("edit_mode", "clone"),
+                aspect_ratio=params.get("aspect_ratio", "auto"),
+                log_cb=sse_log_cb
+            )
+            try:
+                with open("static/template_supervisor_state.json", "w", encoding="utf-8") as f:
+                    json.dump(params, f, indent=2)
+            except Exception:
+                pass
+            sse_log_cb("3D Depth Compositor", "Stitcher & Renderer", "TEMPLATE_COMPILE_SUCCESSFUL", "SUCCESS", 100)
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            sse_log_cb("System", "Runtime", f"Template rendering failed: {str(e)}", "ERROR")
+        finally:
+            log_queue.put(None)
+
+    worker_thread = threading.Thread(target=run_worker, daemon=True)
+    worker_thread.start()
+
+    async def log_stream_generator():
+        while True:
+            try:
+                item = log_queue.get_nowait()
+                if item is None:
+                    break
+                yield f"data: {json.dumps(item)}\n\n"
+            except queue.Empty:
+                if not worker_thread.is_alive() and log_queue.empty():
+                    break
+                await asyncio.sleep(0.03)
+
+    return StreamingResponse(
+        log_stream_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no"
+        }
+    )
+
+def parse_supervisor_feedback(prompt: str, current_state: dict) -> dict:
+    """
+    Parses any natural language user feedback prompt into concrete pipeline adjustments.
+    Uses Gemini LLM (gemini-3.6-flash or gemini-flash-latest) when available,
+    with a resilient local semantic parser fallback.
+    """
+    gemini_key = os.getenv("GEMINI_API_KEY", "").strip()
+    result = None
+
+    if gemini_key:
+        for model_name in ["gemini-3.6-flash", "gemini-flash-latest", "gemini-3.5-flash"]:
+            try:
+                import google.generativeai as genai
+                genai.configure(api_key=gemini_key)
+                model = genai.GenerativeModel(model_name)
+                
+                system_instruction = f"""
+You are an expert AI Video Editor Supervisor Assistant.
+The user has generated an edited video where their subject photo/video was composited into a template.
+The user is providing natural language feedback on what looks off or what they want adjusted.
+
+Current visual settings:
+- pos_y_offset: {current_state.get('pos_y_offset', 0)} (pixels: positive is DOWN/LOWER, negative is UP/HIGHER)
+- pos_x_offset: {current_state.get('pos_x_offset', 0)} (pixels: positive is RIGHT, negative is LEFT)
+- subject_scale: {current_state.get('subject_scale', 1.0)} (multiplier: 1.0 normal, 1.15 bigger, 0.85 smaller)
+- brightness_offset: {current_state.get('brightness_offset', 0)} (-100 to +100: positive is brighter/lift shadows, negative is darker)
+- contrast_factor: {current_state.get('contrast_factor', 1.0)} (0.5 to 2.0: >1.0 more punchy, <1.0 flatter)
+- feather_radius: {current_state.get('feather_radius', 9)} (odd int 3 to 21: higher is softer edges, lower is sharper)
+- color_profile: "{current_state.get('color_profile', 'black_and_white')}" (options: "black_and_white", "golden_hour", "moody_teal_orange", "warm_vintage", "cool_cyber", "neutral")
+- clean_text_overlay: {current_state.get('clean_text_overlay', False)} (boolean: set to true ONLY if user explicitly wants synthetic text overlaid on the screen)
+- layer_depth: "{current_state.get('layer_depth', 'background')}" (options: "background" for text behind subject, "foreground" for text in front of subject)
+
+User Feedback: "{prompt}"
+
+Instructions:
+1. Interpret what the user wants adjusted based on their prompt.
+2. Calculate the updated values (shifting relative to current values by reasonable amounts, e.g. pos_y delta 30-50px, brightness delta 25-40, scale delta 0.1).
+3. If user says 'put photo down' or 'move down', increase pos_y_offset. If 'up', decrease it.
+4. If user says 'too dark' or 'too black' or 'brighten', increase brightness_offset.
+5. If user mentions word positioning, isolated words, transitions, or says words appear separately, explain that word timings and spatial placement are preserved. Do NOT force layer_depth to foreground.
+6. If user says 'text behind', 'behind me', 'user not clearly visible', 'text on user', or 'transparent', set layer_depth to 'background' so the creator remains crisp in front of the text.
+7. If user explicitly says 'text in front' or 'words in front of me', set layer_depth to 'foreground'.
+8. Write a short, friendly explanation (1-2 sentences) directly addressing the user describing what was adjusted.
+
+Respond ONLY with a valid JSON object, no markdown:
+{{
+  "pos_y_offset": int,
+  "pos_x_offset": int,
+  "subject_scale": float,
+  "brightness_offset": int,
+  "contrast_factor": float,
+  "feather_radius": int,
+  "color_profile": string,
+  "clean_text_overlay": bool,
+  "layer_depth": string,
+  "explanation": string
+}}
+"""
+                resp = model.generate_content(system_instruction)
+                txt = resp.text.strip()
+                if txt.startswith("```"):
+                    txt = txt.split("```")[1]
+                    if txt.startswith("json"):
+                        txt = txt[4:]
+                txt = txt.strip().rstrip("```").strip()
+                result = json.loads(txt)
+                if result and "explanation" in result:
+                    break
+            except Exception as e:
+                print(f"[Supervisor] {model_name} feedback parsing warning: {e}")
+                continue
+
+    if not result:
+        # Resilient Local Semantic Fallback Parser
+        p_low = prompt.lower()
+        new_state = dict(current_state)
+        explanations = []
+
+        # 1. Vertical Movement
+        if any(w in p_low for w in ["down", "lower", "bottom", "drop", "sink", "ground"]):
+            delta = 45 if ("way" in p_low or "lot" in p_low) else 35
+            new_state["pos_y_offset"] = new_state.get("pos_y_offset", 0) + delta
+            explanations.append(f"Lowered your photo by {delta}px")
+        elif any(w in p_low for w in ["up", "higher", "top", "raise", "lift"]):
+            delta = 45 if ("way" in p_low or "lot" in p_low) else 35
+            new_state["pos_y_offset"] = new_state.get("pos_y_offset", 0) - delta
+            explanations.append(f"Raised your photo by {delta}px")
+
+        # 2. Horizontal Movement
+        if "left" in p_low:
+            new_state["pos_x_offset"] = new_state.get("pos_x_offset", 0) - 35
+            explanations.append("Shifted photo left by 35px")
+        elif "right" in p_low:
+            new_state["pos_x_offset"] = new_state.get("pos_x_offset", 0) + 35
+            explanations.append("Shifted photo right by 35px")
+
+        # 3. Brightness / Shadows
+        if any(w in p_low for w in ["black", "dark", "dim", "shadow", "brighten", "lighter", "light up", "underexposed"]):
+            boost = 40 if ("too" in p_low or "very" in p_low) else 30
+            new_state["brightness_offset"] = new_state.get("brightness_offset", 0) + boost
+            explanations.append(f"Boosted brightness by +{boost} to lift dark shadows")
+        elif any(w in p_low for w in ["too bright", "washout", "washed", "overexposed", "darken"]):
+            new_state["brightness_offset"] = new_state.get("brightness_offset", 0) - 25
+            explanations.append("Reduced brightness by 25")
+
+        # 4. Scale / Size
+        if any(w in p_low for w in ["bigger", "larger", "huge", "zoom in", "scale up"]):
+            new_state["subject_scale"] = round(new_state.get("subject_scale", 1.0) + 0.12, 2)
+            explanations.append("Scaled photo up by 12%")
+        elif any(w in p_low for w in ["smaller", "tiny", "shrink", "zoom out", "scale down"]):
+            new_state["subject_scale"] = round(max(0.4, new_state.get("subject_scale", 1.0) - 0.12), 2)
+            explanations.append("Scaled photo down by 12%")
+
+        # 5. Words / Text / Typography & Layer Depth
+        if any(w in p_low for w in ["behind", "in back", "behind me", "under me", "background text", "behind creator", "behind person", "user not clearly visible", "not transparent", "on the body", "cover me", "visible"]):
+            new_state["layer_depth"] = "background"
+            explanations.append("Positioned typography BEHIND creator (3D behind-subject depth)")
+        elif any(w in p_low for w in ["in front", "over me", "on top of me", "front text", "foreground", "over creator", "over person", "in front of"]):
+            new_state["layer_depth"] = "foreground"
+            explanations.append("Positioned kinetic typography in FRONT of subject")
+        elif any(w in p_low for w in ["word placement", "words coming separately", "separate", "pop in", "isolated", "font", "transition", "words", "text", "lyric"]):
+            explanations.append("Preserved reference kinetic word timings and spatial placement")
+
+        # 6. Edge Feathering
+        if any(w in p_low for w in ["edge", "halo", "border", "cutout", "sticker", "blend", "soften"]):
+            new_state["feather_radius"] = min(21, new_state.get("feather_radius", 9) + 4)
+            explanations.append("Increased edge feathering for a softer ambient blend")
+
+        # 7. Contrast
+        if "contrast" in p_low:
+            if any(w in p_low for w in ["more", "increase", "punchy", "pop"]):
+                new_state["contrast_factor"] = round(new_state.get("contrast_factor", 1.0) + 0.15, 2)
+                explanations.append("Increased contrast by 15%")
+            elif any(w in p_low for w in ["less", "decrease", "flat", "soft"]):
+                new_state["contrast_factor"] = round(max(0.6, new_state.get("contrast_factor", 1.0) - 0.15), 2)
+                explanations.append("Softened contrast by 15%")
+
+        # 8. Color profile
+        if "golden" in p_low:
+            new_state["color_profile"] = "golden_hour"
+            explanations.append("Switched color grade to Golden Hour")
+        elif "vintage" in p_low or "warm" in p_low:
+            new_state["color_profile"] = "warm_vintage"
+            explanations.append("Switched color grade to Warm Vintage")
+        elif "cyber" in p_low or "cool" in p_low:
+            new_state["color_profile"] = "cool_cyber"
+            explanations.append("Switched color grade to Cool Cyber")
+        elif "teal" in p_low or "orange" in p_low or "moody" in p_low:
+            new_state["color_profile"] = "moody_teal_orange"
+            explanations.append("Switched color grade to Moody Teal & Orange")
+        elif "black and white" in p_low or "b&w" in p_low or "monochrome" in p_low:
+            new_state["color_profile"] = "black_and_white"
+            explanations.append("Switched color grade to Black & White")
+
+        expl = "; ".join(explanations) if explanations else "Applied targeted visual refinements based on your feedback."
+        new_state["explanation"] = expl
+        result = new_state
+
+    return result
+
+@app.post("/api/template/supervisor-refine")
+async def supervisor_refine_template(request: Request):
+    """
+    AI Supervisor Refinement Endpoint.
+    Accepts natural language user feedback after video generation,
+    interprets the intent (via Gemini or smart semantic parser),
+    updates pipeline parameters, and recompiles the edit.
+    """
+    payload = await request.json()
+    prompt = payload.get("prompt", "").strip()
+    if not prompt:
+        raise HTTPException(status_code=400, detail="Feedback prompt cannot be empty.")
+
+    state_path = "static/template_supervisor_state.json"
+    current_state = {
+        "pos_y_offset": 0,
+        "pos_x_offset": 0,
+        "subject_scale": 1.0,
+        "brightness_offset": 0,
+        "contrast_factor": 1.0,
+        "feather_radius": 9,
+        "clean_text_overlay": False,
+        "color_profile": "black_and_white",
+        "anchor_mode": "full",
+        "edit_mode": "clone",
+        "aspect_ratio": "auto"
+    }
+    if os.path.exists(state_path):
+        try:
+            with open(state_path, "r", encoding="utf-8") as f:
+                saved = json.load(f)
+                if isinstance(saved, dict):
+                    current_state.update(saved)
+        except Exception:
+            pass
+
+    # Ensure slot assets are resolved
+    blueprint_path = current_state.get("blueprint_path") or "static/template_blueprint.json"
+    slot_assets = current_state.get("slot_assets", {})
+    if not slot_assets:
+        if os.path.exists("static/uploads"):
+            for f in os.listdir("static/uploads"):
+                if f.startswith("template_slot_1_"):
+                    slot_assets["1"] = f"uploads/{f}"
+                    break
+        current_state["slot_assets"] = slot_assets
+
+    # Parse feedback into parameter updates
+    updated = parse_supervisor_feedback(prompt, current_state)
+    for k in ["pos_y_offset", "pos_x_offset", "subject_scale", "brightness_offset", "contrast_factor", "feather_radius", "clean_text_overlay", "layer_depth", "color_profile"]:
+        if k in updated:
+            current_state[k] = updated[k]
+
+    explanation = updated.get("explanation", "Adjusted visual parameters according to your instructions.")
+
+    # Save state
+    try:
+        with open(state_path, "w", encoding="utf-8") as f:
+            json.dump(current_state, f, indent=2)
+    except Exception:
+        pass
+
+    # Re-compile template edit with updated parameters
+    loop = asyncio.get_event_loop()
+    try:
+        out_path = await loop.run_in_executor(
+            None,
+            lambda: compile_template_edit(
+                blueprint_path=blueprint_path,
+                slot_assets=slot_assets,
+                output_dir="static",
+                custom_timings=current_state.get("custom_timings"),
+                custom_lyrics=current_state.get("custom_lyrics"),
+                layer_depth=current_state.get("layer_depth", "background"),
+                vertical_pos=current_state.get("vertical_pos", 0.50),
+                backdrop_style=current_state.get("backdrop_style", "studio_gray"),
+                text_color=current_state.get("text_color", "white"),
+                subject_scale=float(current_state.get("subject_scale", 1.0)),
+                anchor_mode=current_state.get("anchor_mode", "full"),
+                pos_x_offset=int(current_state.get("pos_x_offset", 0)),
+                pos_y_offset=int(current_state.get("pos_y_offset", 0)),
+                brightness_offset=int(current_state.get("brightness_offset", 0)),
+                contrast_factor=float(current_state.get("contrast_factor", 1.0)),
+                feather_radius=int(current_state.get("feather_radius", 9)),
+                clean_text_overlay=bool(current_state.get("clean_text_overlay", False)),
+                color_profile=current_state.get("color_profile", "black_and_white"),
+                transition_type=current_state.get("transition_type"),
+                edit_mode=current_state.get("edit_mode", "clone"),
+                aspect_ratio=current_state.get("aspect_ratio", "auto")
+            )
+        )
+        return {
+            "status": "success",
+            "message": "Supervisor refinement complete.",
+            "explanation": explanation,
+            "video_url": f"/static/edited_output.mp4?t={int(time.time())}",
+            "settings": current_state
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to apply supervisor refinement: {str(e)}")
+
+@app.get("/api/supervisor/compare")
+@app.post("/api/supervisor/compare")
+async def get_supervisor_frame_comparison():
+    """
+    True Frame-by-Frame Comparison Supervisor Endpoint.
+    Compares Reference Video vs Rendered Output at key timestamps,
+    returning match scores, word presence, and side-by-side comparison image URLs.
+    """
+    blueprint_path = "static/template_blueprint.json"
+    ref_video = None
+    if os.path.exists(blueprint_path):
+        try:
+            with open(blueprint_path, "r", encoding="utf-8") as f:
+                bp = json.load(f)
+                ref_rel = bp.get("reference_video", "")
+                for cand in [os.path.join("static", ref_rel), ref_rel]:
+                    if os.path.exists(cand):
+                        ref_video = cand
+                        break
+        except Exception:
+            pass
+            
+    if not ref_video and os.path.exists("static/uploads"):
+        for f in os.listdir("static/uploads"):
+            if f.startswith("template_ref_") and f.endswith(".mp4"):
+                ref_video = os.path.join("static/uploads", f)
+                break
+                
+    output_video = "static/edited_output.mp4"
+    if not os.path.exists(output_video):
+        for cand in ["static/output.mp4", "output.mp4"]:
+            if os.path.exists(cand):
+                output_video = cand
+                break
+                
+    if not os.path.exists(output_video):
+        raise HTTPException(status_code=404, detail="No compiled video output found to compare.")
+    if not ref_video or not os.path.exists(ref_video):
+        raise HTTPException(status_code=404, detail="No reference video found to compare against.")
+
+    try:
+        from template_engine import FrameComparisonSupervisor
+        sup = FrameComparisonSupervisor(ref_video, output_video, output_dir="static/comparisons", blueprint_path=blueprint_path)
+        report = sup.compare_all(sample_times=[3.0, 9.0, 10.5, 14.8, 17.0])
+        return {
+            "status": "success",
+            "report": report
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Frame comparison failed: {str(e)}")
+
+@app.post("/api/supervisor/auto-heal")
+async def supervisor_auto_heal():
+    """
+    Autonomous Closed-Loop Self-Correction Supervisor Endpoint.
+    Audits current output against reference video. If any discrepancy exists,
+    automatically prescribes mathematical parameter corrections, re-renders,
+    and returns the healed video with its self-healing audit trail.
+    """
+    blueprint_path = "static/template_blueprint.json"
+    state_path = "static/template_supervisor_state.json"
+    current_state = {
+        "pos_y_offset": 0,
+        "pos_x_offset": 0,
+        "subject_scale": 1.0,
+        "brightness_offset": 25,
+        "contrast_factor": 1.05,
+        "feather_radius": 9,
+        "clean_text_overlay": False,
+        "layer_depth": "auto",
+        "color_profile": "black_and_white",
+        "anchor_mode": "full",
+        "edit_mode": "clone",
+        "aspect_ratio": "auto"
+    }
+    if os.path.exists(state_path):
+        try:
+            with open(state_path, "r", encoding="utf-8") as f:
+                saved = json.load(f)
+                if isinstance(saved, dict):
+                    current_state.update(saved)
+        except Exception:
+            pass
+
+    slot_assets = current_state.get("slot_assets", {})
+    if not slot_assets and os.path.exists("static/uploads"):
+        for f in os.listdir("static/uploads"):
+            if f.startswith("template_slot_1_"):
+                slot_assets["1"] = f"uploads/{f}"
+                break
+    if not slot_assets:
+        raise HTTPException(status_code=400, detail="No slot asset photo found for auto-healing re-render.")
+
+    try:
+        from template_engine import compile_with_autonomous_supervisor
+        heal_res = compile_with_autonomous_supervisor(
+            blueprint_path=blueprint_path,
+            slot_assets=slot_assets,
+            output_dir="static",
+            current_state=current_state,
+            min_acceptable_score=88,
+            max_iterations=2
+        )
+        report = heal_res.get("report", {})
+        self_healing = heal_res.get("self_healing", {})
+        best_state = heal_res.get("best_state", current_state)
+
+        # Update saved supervisor state
+        try:
+            with open(state_path, "w", encoding="utf-8") as f:
+                json.dump(best_state, f, indent=2)
+        except Exception:
+            pass
+
+        actions_str = "; ".join(self_healing.get("actions_taken", [])) or "Visual parity verified."
+        return {
+            "status": "success",
+            "self_healing": self_healing,
+            "report": report,
+            "explanation": f"Autonomous Self-Healing: {actions_str}",
+            "video_url": f"/static/edited_output.mp4?t={int(time.time())}",
+            "settings": best_state
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Autonomous self-healing failed: {str(e)}")
 
 @app.post("/api/save-text-overlays")
 async def save_text_overlays(payload: dict):

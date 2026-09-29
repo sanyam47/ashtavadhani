@@ -711,25 +711,109 @@ textarea:focus {
 .preview-player-frame {
     display: flex;
     flex-direction: column;
-    background: rgba(10, 12, 18, 0.6);
+    background: rgba(10, 12, 18, 0.85);
     border: 1px solid var(--border-color);
-    border-radius: 10px;
+    border-radius: 12px;
     overflow: hidden;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.4);
+    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    transition: all 0.3s ease;
 }
+
+/* PLAYER TOP TOOLBAR */
+.player-top-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 12px;
+    background: rgba(15, 18, 27, 0.95);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+    gap: 8px;
+    z-index: 10;
+}
+.player-badge-group {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.player-meta-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.68rem;
+    font-weight: 600;
+    color: #c4b5fd;
+    background: rgba(139, 92, 246, 0.15);
+    border: 1px solid rgba(139, 92, 246, 0.3);
+    padding: 2px 8px;
+    border-radius: 4px;
+}
+.player-meta-badge svg {
+    width: 11px;
+    height: 11px;
+}
+.player-meta-badge.muted {
+    color: rgba(255, 255, 255, 0.5);
+    background: rgba(255, 255, 255, 0.05);
+    border-color: rgba(255, 255, 255, 0.08);
+}
+.player-view-modes {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+.btn-player-mode {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 5px;
+    color: rgba(255, 255, 255, 0.65);
+    font-size: 0.68rem;
+    font-weight: 500;
+    padding: 3px 7px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--font-ui);
+}
+.btn-player-mode:hover {
+    background: rgba(255, 255, 255, 0.12);
+    color: #fff;
+    border-color: rgba(255, 255, 255, 0.2);
+}
+.btn-player-mode.active {
+    background: var(--color-primary);
+    border-color: var(--color-primary);
+    color: #fff;
+    font-weight: 600;
+    box-shadow: 0 0 8px rgba(139, 92, 246, 0.4);
+}
+
+/* PLAYER CONTAINER - DYNAMIC FULL-VIDEO ASPECT RATIO */
 .player-container {
     width: 100%;
     position: relative;
-    padding-top: 177.78%; /* 9:16 aspect ratio standard for Reels */
     background: #000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    aspect-ratio: var(--player-aspect-ratio, 16 / 9);
+    max-height: 72vh;
+    min-height: 220px;
+    transition: aspect-ratio 0.25s ease;
 }
+
 .player-container video {
-    position: absolute;
-    top: 0;
-    left: 0;
     width: 100%;
     height: 100%;
-    object-fit: cover;
+    object-fit: contain; /* SHOW 100% OF THE FULL VIDEO BY DEFAULT */
+    background: #000;
+    display: block;
+}
+
+.player-container.fit-cover video {
+    object-fit: cover; /* Optional zoom mode */
 }
 
 /* WEB REEL INSTAGRAM STYLE SUBTITLES OVERLAY */
@@ -1907,4 +1991,185 @@ textarea:focus {
     color: var(--text-muted);
     fill: none;
 }
+
+/* ===== TEMPLATE MAKER STYLES ===== */
+.template-slot-card {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 10px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px dashed rgba(139, 92, 246, 0.25);
+    border-radius: 8px;
+    transition: all 0.2s ease;
+}
+.template-slot-card:hover {
+    border-color: rgba(139, 92, 246, 0.5);
+    background: rgba(139, 92, 246, 0.04);
+}
+.template-slot-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.76rem;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.85);
+}
+.template-slot-input {
+    width: 100%;
+    font-size: 0.72rem;
+    color: rgba(255, 255, 255, 0.7);
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 5px;
+    padding: 5px;
+    cursor: pointer;
+}
+
+/* ===== SLOT TYPE BADGES ===== */
+.slot-type-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    font-size: 0.62rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    padding: 2px 7px;
+    border-radius: 20px;
+    text-transform: uppercase;
+}
+.slot-badge-photo {
+    background: rgba(34, 197, 94, 0.15);
+    color: #4ade80;
+    border: 1px solid rgba(34, 197, 94, 0.3);
+}
+.slot-badge-video {
+    background: rgba(59, 130, 246, 0.15);
+    color: #60a5fa;
+    border: 1px solid rgba(59, 130, 246, 0.3);
+}
+.slot-badge-any {
+    background: rgba(255, 255, 255, 0.07);
+    color: rgba(255, 255, 255, 0.45);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+/* ===== SLOT MODE TOGGLE BUTTONS ===== */
+.btn-slot-mode {
+    flex: 1;
+    padding: 5px 8px;
+    font-size: 0.68rem;
+    font-weight: 500;
+    border-radius: 6px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    background: rgba(255, 255, 255, 0.04);
+    color: rgba(255, 255, 255, 0.6);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-family: inherit;
+}
+.btn-slot-mode:hover {
+    background: rgba(255, 255, 255, 0.08);
+    color: #fff;
+}
+.btn-slot-mode.active {
+    background: rgba(139, 92, 246, 0.25);
+    border-color: rgba(139, 92, 246, 0.6);
+    color: #c4b5fd;
+    font-weight: 600;
+}
+
+/* ===== SLOT TIMING SLIDERS & INPUTS ===== */
+.slot-num-input {
+    width: 48px;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 4px;
+    padding: 3px 4px;
+    color: #22d3ee;
+    font-size: 0.68rem;
+    font-weight: 600;
+    text-align: center;
+    outline: none;
+    font-family: inherit;
+}
+.slot-num-input:focus {
+    border-color: #22d3ee;
+    background: rgba(34, 211, 238, 0.08);
+}
+.slot-range-slider {
+    height: 4px;
+    accent-color: #22d3ee;
+    cursor: pointer;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 2px;
+}
+
+/* ===== ON-PLAYER INTERACTIVE TRANSFORM BOX ===== */
+.player-transform-box {
+    position: absolute;
+    border: 2px dashed #22d3ee;
+    border-radius: 6px;
+    pointer-events: auto;
+    cursor: move;
+    z-index: 25;
+    box-shadow: 0 0 16px rgba(34, 211, 238, 0.25);
+    background: rgba(34, 211, 238, 0.04);
+    box-sizing: border-box;
+    touch-action: none;
+}
+.player-transform-box.hidden { display: none !important; }
+
+.transform-handle {
+    position: absolute;
+    width: 14px;
+    height: 14px;
+    background: #22d3ee;
+    border: 2px solid #fff;
+    border-radius: 50%;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
+    z-index: 26;
+}
+.transform-handle.corner-tl { top: -7px; left: -7px; cursor: nwse-resize; }
+.transform-handle.corner-tr { top: -7px; right: -7px; cursor: nesw-resize; }
+.transform-handle.corner-bl { bottom: -7px; left: -7px; cursor: nesw-resize; }
+.transform-handle.corner-br { bottom: -7px; right: -7px; cursor: nwse-resize; }
+
+.transform-badge {
+    position: absolute;
+    top: -24px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(19, 23, 34, 0.92);
+    border: 1px solid #22d3ee;
+    color: #22d3ee;
+    font-size: 0.65rem;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 12px;
+    white-space: nowrap;
+    pointer-events: none;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.5);
+}
+
+/* Crop Button on Slot Cards */
+.btn-crop-slot {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    background: rgba(34, 211, 238, 0.12);
+    border: 1px solid rgba(34, 211, 238, 0.35);
+    color: #22d3ee;
+    border-radius: 6px;
+    padding: 4px 10px;
+    font-size: 0.68rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+.btn-crop-slot:hover {
+    background: rgba(34, 211, 238, 0.22);
+    border-color: #22d3ee;
+}
+
 

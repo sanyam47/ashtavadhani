@@ -665,7 +665,16 @@ def assemble_edit(raw_videos_meta, missing_shot_action, progress_callback=None, 
         music_tracks = [{"track": music_plan["track"], "volume": music_plan.get("volume", 0.15)}]
     
     if music_plan.get("run_music", True) and music_tracks:
-        audio_layers = [final_video.audio] if final_video.audio is not None else []
+        has_custom = music_plan.get("has_custom", False)
+        # Mute original clip audio if custom music uploaded, or duck original audio down to 20% volume
+        if final_video.audio is not None:
+            if has_custom:
+                orig_audio = final_video.audio.with_volume_scaled(0.0)
+            else:
+                orig_audio = final_video.audio.with_volume_scaled(0.20)
+            audio_layers = [orig_audio]
+        else:
+            audio_layers = []
         for track_entry in music_tracks:
             track_rel = track_entry.get("track", "")
             track_vol = track_entry.get("volume", 0.15)
